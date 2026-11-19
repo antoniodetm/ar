@@ -12,15 +12,18 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100vh;
             background-color: #f0f0f0;
+            min-height: 100vh;
+            padding-bottom: 40px;
         }
 
         model-viewer {
-            width: 100%;
-            height: 80vh;
+            width: 95%;
+            height: 60vh;
             background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
         }
 
         .controls {
@@ -128,7 +131,6 @@
 
     <div class="controls">
         <h1>Visualizador 3D AR</h1>
-        <p>Toca el objeto para interactuar o el botón para verlo en tu espacio.</p>
 
         <div class="upload-container">
             <label for="file-input" class="custom-file-upload">
@@ -137,6 +139,19 @@
             <input id="file-input" type="file" accept=".glb,.gltf,.usdz" />
             <div id="upload-status" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
         </div>
+    </div>
+
+    <div class="models-list" id="models-list">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">📦 Modelos disponibles</h3>
+            <button onclick="loadModelsList()"
+                style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; padding: 2px 8px;">🔄</button>
+        </div>
+        <div id="list-container" style="margin-top: 10px;">Cargando modelos...</div>
+    </div>
+
+    <div class="controls">
+        <p>Toca un modelo de la lista para verlo aquí debajo:</p>
     </div>
 
     <!-- 
@@ -161,15 +176,6 @@
 
     <div class="controls">
         <p><small>Nota: Requiere un iPhone con iOS 12+ o un dispositivo Android compatible.</small></p>
-    </div>
-
-    <div class="models-list" id="models-list">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">📦 Modelos disponibles</h3>
-            <button onclick="loadModelsList()"
-                style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; padding: 2px 8px;">🔄</button>
-        </div>
-        <div id="list-container" style="margin-top: 10px;">Cargando modelos...</div>
     </div>
 
     <script>
