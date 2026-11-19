@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualizador AR 3D</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        model-viewer {
+            width: 100%;
+            height: 80vh;
+            background-color: #ffffff;
+        }
+
+        .controls {
+            padding: 20px;
+            text-align: center;
+        }
+
+        #ar-button {
+            background-color: #007AFF;
+            border-radius: 8px;
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <!-- Importar el componente model-viewer -->
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+</head>
+
+<body>
+
+    <div class="controls">
+        <h1>Visualizador 3D AR</h1>
+        <p>Toca el objeto para interactuar o el botón para verlo en tu espacio.</p>
+    </div>
+
+    <!-- 
+        src: El modelo 3D en formato GLB (estándar web)
+        ios-src: El modelo 3D en formato USDZ (específico para iOS/iPhone)
+        ar: Habilita el modo Realidad Aumentada
+        ar-modes: Define los métodos de AR (webxr, scene-viewer para android, quick-look para iOS)
+        camera-controls: Permite rotar y hacer zoom con los dedos
+        auto-rotate: El modelo gira solo cuando no se toca
+        shadow-intensity: Intensidad de la sombra
+    -->
+    <model-viewer src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
+        ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" ar
+        ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="1"
+        alt="Un modelo 3D de un astronauta">
+
+        <button slot="ar-button" id="ar-button">
+            👋 Ver en tu espacio (AR)
+        </button>
+
+    </model-viewer>
+
+    <div class="controls">
+        <p><small>Nota: Requiere un iPhone con iOS 12+ o un dispositivo Android compatible.</small></p>
+    </div>
+
+</body>
+
+</html>
