@@ -166,13 +166,26 @@
     <model-viewer src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
         ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" ar
         ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="1"
-        alt="Un modelo 3D de un astronauta">
+        alt="Un modelo 3D de un astronauta" id="main-viewer">
 
         <button slot="ar-button" id="ar-button">
             👋 Ver en tu espacio (AR)
         </button>
 
     </model-viewer>
+
+    <script>
+        const mainViewer = document.getElementById('main-viewer');
+        mainViewer.addEventListener('error', (error) => {
+            console.error('Error detallado del model-viewer:', error);
+            const statusDiv = document.getElementById('upload-status');
+            statusDiv.innerHTML = `<span style="color: red;">Error al visualizar el modelo. Posible bloqueo de seguridad (CORS).</span>`;
+
+            if (error.detail.type === 'loadfailure') {
+                console.warn('El servidor de Firebase Storage bloqueó la descarga del archivo por falta de configuración CORS.');
+            }
+        });
+    </script>
 
     <div class="controls">
         <p><small>Nota: Requiere un iPhone con iOS 12+ o un dispositivo Android compatible.</small></p>
@@ -211,16 +224,25 @@
                     itemDiv.innerHTML = `<span>${data.name}</span>`;
 
                     itemDiv.onclick = () => {
-                        statusDiv.textContent = `Cargando ${data.name}...`;
-                        const isUSDZ = data.name.toLowerCase().endsWith('.usdz');
+                        console.log('Intentando cargar modelo:', data.name, 'URL:', data.url);
+                        statusDiv.innerHTML = `<span style="color: blue;">Cargando ${data.name}...</span>`;
 
-                        if (isUSDZ) {
-                            modelViewer.iosSrc = data.url;
-                        } else {
-                            modelViewer.src = data.url;
-                            modelViewer.removeAttribute('ios-src');
-                        }
-                        statusDiv.textContent = `Modelo cargado: ${data.name}`;
+                        // Limpiar atributos previos para forzar recarga
+                        modelViewer.removeAttribute('src');
+                        modelViewer.removeAttribute('ios-src');
+
+                        // Pequeño delay para que el navegador note el cambio
+                        setTimeout(() => {
+                            const isUSDZ = data.name.toLowerCase().endsWith('.usdz');
+                            if (isUSDZ) {
+                                modelViewer.setAttribute('ios-src', data.url);
+                                // Para USDZ en iOS, src puede ser opcional o un placeholder
+                                modelViewer.setAttribute('src', 'https://modelviewer.dev/shared-assets/models/Astronaut.glb');
+                            } else {
+                                modelViewer.setAttribute('src', data.url);
+                            }
+                            statusDiv.innerHTML = `<span style="color: green;">Modelo "${data.name}" enviado al visor.</span>`;
+                        }, 100);
                     };
 
                     listContainer.appendChild(itemDiv);
