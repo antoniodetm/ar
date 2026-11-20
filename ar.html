@@ -77,7 +77,7 @@
             padding: 15px;
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            max-height: 200px;
+            max-height: 250px;
             overflow-y: auto;
         }
 
@@ -108,22 +108,31 @@
         import { getStorage, ref, uploadBytesResumable, getDownloadURL, listAll } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
         import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE FIREBASE (Rellenar con tus datos)
+        // CONFIGURACIÓN DE FIREBASE
+        // Copia estos valores EXACTOS de tu Consola Firebase: 
+        // Ajustes del proyecto > General > Tus aplicaciones > SDK Setup y configuración
         const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_AUTH_DOMAIN",
-            projectId: "TU_PROJECT_ID",
+            apiKey: "AIzaSyCDvgv6A8ugOmfgX9jKiCp_0ccyomxYOk0",
+            authDomain: "rutas-e051f.firebaseapp.com",
+            projectId: "rutas-e051f",
             storageBucket: "rutas-e051f.firebasestorage.app",
-            messagingSenderId: "TU_SENDER_ID",
-            appId: "TU_APP_ID"
+            messagingSenderId: "847055749718",
+            appId: "1:847055749718:web:785a36377e025816c4f923"
         };
 
-        // Inicializar Firebase
-        const app = initializeApp(firebaseConfig);
-        const storage = getStorage(app, "gs://rutas-e051f.firebasestorage.app");
-        const db = getFirestore(app);
-
-        window.firebaseApp = { storage, db, ref, uploadBytesResumable, getDownloadURL, listAll, collection, addDoc, getDocs, serverTimestamp, query, orderBy };
+        try {
+            if (firebaseConfig.authDomain.includes("TU_AUTH_DOMAIN")) {
+                log("⚠️ Falta completar la configuración en ar.html con tus datos de Firebase.");
+            }
+            const app = initializeApp(firebaseConfig);
+            const storage = getStorage(app); // Simplificado: usa el bucket de firebaseConfig
+            const db = getFirestore(app);
+            window.firebaseApp = { storage, db, ref, uploadBytesResumable, getDownloadURL, listAll, collection, addDoc, getDocs, serverTimestamp, query, orderBy };
+            window.dispatchEvent(new Event('firebase-ready'));
+            console.log("Firebase inicializado correctamente.");
+        } catch (e) {
+            console.error("Error al inicializar Firebase:", e);
+        }
     </script>
 </head>
 
@@ -131,12 +140,9 @@
 
     <div class="controls">
         <h1>Visualizador 3D AR</h1>
-
         <div class="upload-container">
-            <label for="file-input" class="custom-file-upload">
-                📂 Cargar mi propio modelo (.glb, .usdz)
-            </label>
-            <input id="file-input" type="file" accept=".glb,.gltf,.usdz" />
+            <label for="file-input" class="custom-file-upload">📂 Cargar modelos (.glb y .usdz juntos)</label>
+            <input id="file-input" type="file" accept=".glb,.gltf,.usdz" multiple />
             <div id="upload-status" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
         </div>
     </div>
@@ -144,220 +150,215 @@
     <div class="models-list" id="models-list">
         <div style="display: flex; justify-content: space-between; align-items: center;">
             <h3 style="margin: 0;">📦 Modelos disponibles</h3>
-            <button onclick="loadModelsList()"
-                style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; padding: 2px 8px;">🔄</button>
+            <div>
+                <button onclick="debugListStorage()" title="Debug Storage"
+                    style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: #eee; border-radius: 4px; padding: 2px 8px;">🔍</button>
+                <button onclick="loadModelsList()"
+                    style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; padding: 2px 8px;">🔄</button>
+            </div>
         </div>
-        <div id="list-container" style="margin-top: 10px;">Cargando modelos...</div>
+        <div id="list-container" style="margin-top: 10px;">Cargando lista...</div>
+
+        <div id="manual-register"
+            style="margin-top: 15px; border-top: 1px dashed #ccc; padding-top: 10px; display: none;">
+            <p style="font-size: 11px; color: #666;">Registrar archivos antiguos (escribe el nombre sin extensión):</p>
+            <input type="text" id="manual-name" placeholder="ejemplo" style="font-size: 11px; width: 50%;">
+            <button onclick="registerManualMulti()" style="font-size: 11px; cursor: pointer;">Registrar</button>
+        </div>
     </div>
 
     <div class="controls">
         <p>Toca un modelo de la lista para verlo aquí debajo:</p>
     </div>
 
-    <!-- 
-        src: El modelo 3D en formato GLB (estándar web)
-        ios-src: El modelo 3D en formato USDZ (específico para iOS/iPhone)
-        ar: Habilita el modo Realidad Aumentada
-        ar-modes: Define los métodos de AR (webxr, scene-viewer para android, quick-look para iOS)
-        camera-controls: Permite rotar y hacer zoom con los dedos
-        auto-rotate: El modelo gira solo cuando no se toca
-        shadow-intensity: Intensidad de la sombra
-    -->
     <model-viewer src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
         ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" ar
-        ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="1"
-        alt="Un modelo 3D de un astronauta" id="main-viewer">
-
-        <button slot="ar-button" id="ar-button">
-            👋 Ver en tu espacio (AR)
-        </button>
-
+        ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="1" alt="Visualizador 3D"
+        id="main-viewer">
+        <button slot="ar-button" id="ar-button">👋 Ver en tu espacio (AR)</button>
     </model-viewer>
 
-    <script>
-        const mainViewer = document.getElementById('main-viewer');
-        mainViewer.addEventListener('error', (error) => {
-            console.error('Error detallado del model-viewer:', error);
-            const statusDiv = document.getElementById('upload-status');
-            statusDiv.innerHTML = `<span style="color: red;">Error al visualizar el modelo. Posible bloqueo de seguridad (CORS).</span>`;
-
-            if (error.detail.type === 'loadfailure') {
-                console.warn('El servidor de Firebase Storage bloqueó la descarga del archivo por falta de configuración CORS.');
-            }
-        });
-    </script>
-
-    <div class="controls">
-        <p><small>Nota: Requiere un iPhone con iOS 12+ o un dispositivo Android compatible.</small></p>
+    <div id="debug-console"
+        style="width: 90%; max-width: 400px; background: #333; color: #0f0; font-family: monospace; font-size: 10px; padding: 10px; border-radius: 5px; margin-top: 10px; height: 80px; overflow-y: auto;">
+        <div>> Sistema listo</div>
     </div>
 
     <script>
-        const modelViewer = document.querySelector('model-viewer');
+        function log(msg) {
+            const consoleDiv = document.getElementById('debug-console');
+            const entry = document.createElement('div');
+            entry.textContent = `> ${msg}`;
+            consoleDiv.appendChild(entry);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            console.log("LOG:", msg);
+        }
+
+        const modelViewer = document.getElementById('main-viewer');
         const fileInput = document.getElementById('file-input');
         const statusDiv = document.getElementById('upload-status');
         const listContainer = document.getElementById('list-container');
 
-        // Función para listar archivos usando Firestore (evita problemas de CORS de Storage)
+        modelViewer.addEventListener('error', (error) => {
+            log('Error del visor: ' + error.detail.type);
+            if (error.detail.type === 'loadfailure') {
+                statusDiv.innerHTML = `<span style="color: red;">Error: Bloqueo de seguridad (CORS). Sube la web a Firebase Hosting.</span>`;
+            }
+        });
+
         async function loadModelsList() {
-            if (!window.firebaseApp) return;
+            log('Consultando base de datos...');
+            if (!window.firebaseApp) {
+                log('Esperando a Firebase...');
+                return;
+            }
 
             try {
                 const { db, collection, getDocs, query, orderBy } = window.firebaseApp;
-                const modelsRef = collection(db, 'models');
-                const q = query(modelsRef, orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(q);
+                const q = query(collection(db, 'models'), orderBy('createdAt', 'desc'));
+                const snap = await getDocs(q);
 
+                log(`Firestore: ${snap.size} documentos encontrados.`);
                 listContainer.innerHTML = '';
 
-                if (querySnapshot.empty) {
-                    listContainer.innerHTML = `
-                        <p style="color: #999; font-size: 12px;">No hay modelos registrados en Firestore.</p>
-                        <button onclick="importFromStorage()" style="font-size: 11px; cursor: pointer;">🔍 Intentar buscar archivos en Storage</button>
-                    `;
+                if (snap.empty) {
+                    listContainer.innerHTML = '<p style="color: #999; font-size: 12px;">No hay modelos registrados. Sube uno nuevo para que aparezca aquí.</p>';
+                    document.getElementById('manual-register').style.display = 'block';
                     return;
                 }
 
-                querySnapshot.forEach((doc) => {
+                document.getElementById('manual-register').style.display = 'block';
+                snap.forEach(doc => {
                     const data = doc.data();
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'model-item';
-                    itemDiv.innerHTML = `<span>${data.name}</span>`;
+                    const item = document.createElement('div');
+                    item.className = 'model-item';
+                    let formats = [];
+                    if (data.url_glb) formats.push('Android');
+                    if (data.url_usdz) formats.push('iOS');
 
-                    itemDiv.onclick = () => {
-                        console.log('Intentando cargar modelo:', data.name, 'URL:', data.url);
+                    item.innerHTML = `<span>${data.name}</span><span style="font-size: 10px; color: #888;">${formats.join('/')}</span>`;
+                    item.onclick = () => {
+                        log(`Cargando modelo: ${data.name}`);
                         statusDiv.innerHTML = `<span style="color: blue;">Cargando ${data.name}...</span>`;
-
-                        // Limpiar atributos previos para forzar recarga
                         modelViewer.removeAttribute('src');
                         modelViewer.removeAttribute('ios-src');
-
-                        // Pequeño delay para que el navegador note el cambio
                         setTimeout(() => {
-                            const isUSDZ = data.name.toLowerCase().endsWith('.usdz');
-                            if (isUSDZ) {
-                                modelViewer.setAttribute('ios-src', data.url);
-                                // Para USDZ en iOS, src puede ser opcional o un placeholder
-                                modelViewer.setAttribute('src', 'https://modelviewer.dev/shared-assets/models/Astronaut.glb');
-                            } else {
-                                modelViewer.setAttribute('src', data.url);
-                            }
-                            statusDiv.innerHTML = `<span style="color: green;">Modelo "${data.name}" enviado al visor.</span>`;
+                            if (data.url_glb) modelViewer.setAttribute('src', data.url_glb);
+                            if (data.url_usdz) modelViewer.setAttribute('ios-src', data.url_usdz);
+                            if (!data.url_glb && data.url_usdz) modelViewer.setAttribute('src', 'https://modelviewer.dev/shared-assets/models/Astronaut.glb');
+                            statusDiv.innerHTML = `<span style="color: green;">${data.name} cargado.</span>`;
                         }, 100);
                     };
-
-                    listContainer.appendChild(itemDiv);
+                    listContainer.appendChild(item);
                 });
-            } catch (err) {
-                console.error('Error al listar modelos desde Firestore:', err);
-                listContainer.innerHTML = `<p style="color: #666; font-size: 12px;">Error al cargar lista: ${err.message}</p>`;
+            } catch (e) {
+                log('Error Firestore: ' + e.message);
+                listContainer.innerHTML = `<p style="color: red; font-size: 12px;">Error: ${e.message}</p>`;
             }
         }
 
-        // Cargar lista al iniciar
-        setTimeout(loadModelsList, 2500);
+        if (window.firebaseApp) loadModelsList();
+        else window.addEventListener('firebase-ready', loadModelsList);
 
-        // Función para importar archivos que ya existen en Storage hacia Firestore
-        async function importFromStorage() {
-            if (!window.firebaseApp) return;
-            statusDiv.textContent = 'Buscando archivos en Storage...';
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
 
-            try {
-                const { storage, db, ref, listAll, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
-                const storageRef = ref(storage, 'ar/');
-                const res = await listAll(storageRef);
+            const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
+            const groups = {};
+            files.forEach(f => {
+                const name = f.name.substring(0, f.name.lastIndexOf('.'));
+                if (!groups[name]) groups[name] = {};
+                const ext = f.name.split('.').pop().toLowerCase();
+                if (ext === 'glb' || ext === 'gltf') groups[name].glb = f;
+                if (ext === 'usdz') groups[name].usdz = f;
+            });
 
-                if (res.items.length === 0) {
-                    statusDiv.textContent = 'No se encontraron archivos en la carpeta ar/ de Storage.';
-                    return;
-                }
-
-                let imports = 0;
-                for (const itemRef of res.items) {
-                    const url = await getDownloadURL(itemRef);
-                    await addDoc(collection(db, 'models'), {
-                        name: itemRef.name,
-                        url: url,
-                        createdAt: serverTimestamp()
-                    });
-                    imports++;
-                }
-
-                statusDiv.textContent = `Se han importado ${imports} modelos correctamente.`;
-                loadModelsList();
-            } catch (err) {
-                console.error('Error al importar:', err);
-                if (err.code === 'storage/unknown') {
-                    alert('Error de CORS: Google bloquea el acceso directo. Para solucionar esto, sube un archivo nuevo desde esta página o configura CORS en tu consola de Google Cloud.');
-                } else {
-                    alert('Error al buscar en Storage: ' + err.message);
-                }
-                statusDiv.textContent = 'Error en la importación.';
-            }
-        }
-
-        fileInput.addEventListener('change', async (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            // 1. Mostrar previsualización inmediata usando un URL de objeto local
-            const localUrl = URL.createObjectURL(file);
-            const isUSDZ = file.name.toLowerCase().endsWith('.usdz');
-
-            if (isUSDZ) {
-                modelViewer.iosSrc = localUrl;
-            } else {
-                modelViewer.src = localUrl;
-                modelViewer.removeAttribute('ios-src');
-            }
-
-            statusDiv.textContent = 'Iniciando subida...';
-
-            // 2. Intentar subir a Firebase Storage
-            if (window.firebaseApp) {
+            for (const name in groups) {
+                log(`Subiendo ${name}...`);
+                statusDiv.textContent = `Subiendo ${name}...`;
+                let urls = {};
                 try {
-                    const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
-
-                    // Crear referencia en la carpeta 'ar/'
-                    const storageRef = ref(storage, 'ar/' + file.name);
-                    const uploadTask = uploadBytesResumable(storageRef, file);
-
-                    uploadTask.on('state_changed',
-                        (snapshot) => {
-                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            statusDiv.textContent = `Subiendo archivo: ${Math.round(progress)}%`;
-                        },
-                        (error) => {
-                            console.error('Error en la subida a Storage:', error);
-                            statusDiv.textContent = 'Error al subir archivo: ' + error.message;
-                        },
-                        async () => {
-                            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-
-                            // 3. Guardar metadatos en Firestore para evitar listar Storage
-                            try {
-                                await addDoc(collection(db, 'models'), {
-                                    name: file.name,
-                                    url: downloadURL,
-                                    createdAt: serverTimestamp()
-                                });
-                                statusDiv.textContent = '¡Modelo guardado y registrado con éxito!';
-                                loadModelsList();
-                            } catch (fsError) {
-                                console.error('Error al guardar en Firestore:', fsError);
-                                statusDiv.textContent = 'Archivo subido, pero falló el registro en base de datos.';
-                            }
-                        }
-                    );
+                    if (groups[name].glb) {
+                        const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[name].glb.name), groups[name].glb);
+                        urls.glb = await getDownloadURL(s.ref);
+                        log('GLB subido.');
+                    }
+                    if (groups[name].usdz) {
+                        const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[name].usdz.name), groups[name].usdz);
+                        urls.usdz = await getDownloadURL(s.ref);
+                        log('USDZ subido.');
+                    }
+                    await addDoc(collection(db, 'models'), { name, url_glb: urls.glb || null, url_usdz: urls.usdz || null, createdAt: serverTimestamp() });
+                    log('Registrado en Firestore.');
                 } catch (err) {
-                    console.error('Error de inicialización:', err);
-                    statusDiv.textContent = 'Error al conectar con Firebase.';
+                    log('Error en subida: ' + err.message);
                 }
-            } else {
-                statusDiv.textContent = 'Modelo cargado localmente (Configura Firebase para guardar).';
             }
+            statusDiv.textContent = 'Proceso finalizado.';
+            loadModelsList();
         });
-    </script>
 
+        async function registerManualMulti() {
+            let name = document.getElementById('manual-name').value.trim();
+            if (!name) return;
+
+            // Eliminar extensión si el usuario la incluyó
+            name = name.replace(/\.(glb|usdz)$/i, '');
+
+            log(`Buscando "${name}" en Storage (carpeta ar/)...`);
+            if (!window.firebaseApp) { log('Error: Firebase no listo.'); return; }
+            const { storage, db, ref, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
+            let urls = {};
+            try {
+                urls.glb = await getDownloadURL(ref(storage, 'ar/' + name + '.glb'));
+                log('✅ Encontrado GLB.');
+            } catch (e) {
+                log(`❌ No se halló ${name}.glb: ${e.code || e.message}`);
+            }
+            try {
+                urls.usdz = await getDownloadURL(ref(storage, 'ar/' + name + '.usdz'));
+                log('✅ Encontrado USDZ.');
+            } catch (e) {
+                log(`❌ No se halló ${name}.usdz: ${e.code || e.message}`);
+            }
+
+            if (urls.glb || urls.usdz) {
+                await addDoc(collection(db, 'models'), { name, url_glb: urls.glb || null, url_usdz: urls.usdz || null, createdAt: serverTimestamp() });
+                log('Registro completado en Firestore.');
+                loadModelsList();
+            } else {
+                log('No se encontró ningún archivo con ese nombre en /ar/');
+                alert('No se encontró el archivo .glb o .usdz en la carpeta "ar" de Storage. Verifica el nombre y los permisos.');
+            }
+        }
+
+        async function debugListStorage() {
+            log('Listando archivos en storage bucket...');
+            if (!window.firebaseApp) { log('Error: Firebase no listo.'); return; }
+            const { storage, ref, listAll } = window.firebaseApp;
+            try {
+                const listRef = ref(storage, 'ar');
+                const res = await listAll(listRef);
+                log(`Encontrados en /ar/: ${res.items.length} archivos.`);
+                res.items.forEach((itemRef) => {
+                    log(` - Fichero: ${itemRef.name}`);
+                });
+                if (res.items.length === 0) {
+                    log('La carpeta /ar está vacía o no existe.');
+                }
+            } catch (e) {
+                if (e.code === 'storage/unknown') {
+                    log(`❌ Error Desconocido (storage/unknown):`);
+                    log(`   1. Verifica que las 'Rules' en Firebase Storage permitan lectura pública.`);
+                    log(`   2. Verifica la configuración de CORS en el bucket.`);
+                    log(`   3. Asegúrate de que el Project ID en la configuración es correcto.`);
+                } else {
+                    log(`Error al listar: ${e.message}`);
+                }
+                console.error(e);
+            }
+        }
+    </script>
 </body>
 
 </html>
