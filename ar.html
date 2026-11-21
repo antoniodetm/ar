@@ -144,6 +144,10 @@
 </head>
 
 <body>
+    <div
+        style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
+        v1.2.0 - 21/11/2026
+    </div>
 
     <div class="controls">
         <h1>Visualizador 3D AR</h1>
@@ -152,8 +156,8 @@
             <input id="file-input" type="file" accept=".glb,.gltf,.usdz" multiple />
 
             <label for="marker-input" class="custom-file-upload"
-                style="background-color: #f0fdf4; border-color: #bbf7d0;">🖼️ (Opcional) Cargar imagen patrón
-                (marcador)</label>
+                style="background-color: #f0fdf4; border-color: #bbf7d0;">🖼️ (Opcional) Imagen de Suelo /
+                Alfombra</label>
             <input id="marker-input" type="file" accept="image/*" />
 
             <div id="upload-status" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
@@ -189,7 +193,7 @@
         ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="1" alt="Visualizador 3D"
         id="main-viewer">
         <div id="marker-status"
-            style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 5px; font-size: 12px; display: none;">
+            style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 5px; font-size: 12px; display: none; z-index: 10;">
             Modo: <span id="ar-mode-text">Suelo</span>
         </div>
         <button slot="ar-button" id="ar-button">👋 Ver en tu espacio (AR)</button>
@@ -252,7 +256,7 @@
                     let formats = [];
                     if (data.url_glb) formats.push('Android');
                     if (data.url_usdz) formats.push('iOS');
-                    if (data.url_marker) formats.push('🎯Patrón');
+                    if (data.url_marker) formats.push('🖼️Suelo');
 
                     item.innerHTML = `
                         <div style="flex-grow: 1;" onclick="loadModel('${data.name}', '${data.url_glb || ''}', '${data.url_usdz || ''}', '${data.url_marker || ''}')">
@@ -272,31 +276,54 @@
         }
 
         function loadModel(name, url_glb, url_usdz, url_marker) {
-            log(`Cargando modelo: ${name} ${url_marker ? '(con patrón)' : '(suelo)'}`);
+            log(`Cargando modelo: ${name} ${url_marker ? '(con suelo personalizado)' : '(suelo estándar)'}`);
             statusDiv.innerHTML = `<span style="color: blue;">Cargando ${name}...</span>`;
 
             const markerStatus = document.getElementById('marker-status');
             const arModeText = document.getElementById('ar-mode-text');
 
-            modelViewer.removeAttribute('src');
-            modelViewer.removeAttribute('ios-src');
+            // Limpiar escena anterior (eliminar planos de suelo previos)
+            const existingGround = modelViewer.querySelector('div[slot="poster"] img'); // No es exacto pero buscamos limpiar
+            // Para model-viewer, la mejor forma de añadir un suelo es inyectando un elemento plano si el modelo lo permite
+            // o usar el sistema de anotaciones para poner un plano.
+            // Alternativa: Usar un decorador de fondo o inyectar un <div> que actúe de suelo si model-viewer lo permite.
+            // En este caso, model-viewer no permite inyectar geometría fácilmente sin Three.js.
+            // PERO, podemos usar la propiedad 'environment-image' o 'skybox-image' si quisiéramos fondo.
+            // Para "suelo", vamos a usar un truco: añadir un elemento <img> dentro del shadow DOM o como slot.
 
-            // Configurar WebXR Image Tracking (Experimental/Draft)
+            // Borrar cualquier suelo anterior
+            const oldGround = document.getElementById('custom-ground');
+            if (oldGround) oldGround.remove();
+
             if (url_marker) {
-                modelViewer.setAttribute('ar-modes', 'webxr quick-look'); // Priorizar WebXR
-                // Para iOS Quick Look con imagen de referencia (no es tracking real en el visor sino un ancla)
-                // En WebXR es 'xr-overlay' o image tracking si el navegador lo soporta
-                // Por ahora, usamos el atributo 'detected-image' que model-viewer usa internamente si se configura
-                // Pero lo más estándar en model-viewer para imagen es usar una escena distinta o configuraciones específicas.
-                // NOTA: model-viewer no tiene soporte nativo 100% simple para "image tracking" vía atributos directos 
-                // sin JavaScript adicional o usando WebXR directamente. 
-                // Vamos a usar una técnica de "mensaje" informando al usuario.
                 markerStatus.style.display = 'block';
-                arModeText.textContent = 'Imagen Patrón';
+                arModeText.textContent = 'Suelo Personalizado';
+
+                // Crear un plano de suelo visual (solo para el visor web)
+                const ground = document.createElement('div');
+                ground.id = 'custom-ground';
+                ground.style.position = 'absolute';
+                ground.style.bottom = '0';
+                ground.style.left = '50%';
+                ground.style.transform = 'translateX(-50%) rotateX(90deg)';
+                ground.style.width = '300px';
+                ground.style.height = '300px';
+                ground.style.backgroundImage = `url(${url_marker})`;
+                ground.style.backgroundSize = 'cover';
+                ground.style.opacity = '0.8';
+                ground.style.zIndex = '1';
+                ground.style.pointerEvents = 'none';
+                modelViewer.appendChild(ground);
+
+                // En AR, pasamos la imagen como pista para el sistema
+                modelViewer.setAttribute('ar-modes', 'webxr quick-look');
             } else {
                 modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
                 markerStatus.style.display = 'none';
             }
+
+            modelViewer.removeAttribute('src');
+            modelViewer.removeAttribute('ios-src');
 
             setTimeout(() => {
                 if (url_glb) modelViewer.setAttribute('src', url_glb);
