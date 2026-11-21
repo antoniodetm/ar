@@ -156,8 +156,8 @@
             <input id="file-input" type="file" accept=".glb,.gltf,.usdz" multiple />
 
             <label for="marker-input" class="custom-file-upload"
-                style="background-color: #f0fdf4; border-color: #bbf7d0;">🖼️ (Opcional) Imagen de Suelo /
-                Alfombra</label>
+                style="background-color: #f0fdf4; border-color: #bbf7d0;">🎯 (Opcional) Imagen Patrón / Postal
+                (Tracking)</label>
             <input id="marker-input" type="file" accept="image/*" />
 
             <div id="upload-status" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
@@ -256,7 +256,7 @@
                     let formats = [];
                     if (data.url_glb) formats.push('Android');
                     if (data.url_usdz) formats.push('iOS');
-                    if (data.url_marker) formats.push('🖼️Suelo');
+                    if (data.url_marker) formats.push('🎯Tracking');
 
                     item.innerHTML = `
                         <div style="flex-grow: 1;" onclick="loadModel('${data.name}', '${data.url_glb || ''}', '${data.url_usdz || ''}', '${data.url_marker || ''}')">
@@ -276,47 +276,47 @@
         }
 
         function loadModel(name, url_glb, url_usdz, url_marker) {
-            log(`Cargando modelo: ${name} ${url_marker ? '(con suelo personalizado)' : '(suelo estándar)'}`);
+            log(`Cargando modelo: ${name} ${url_marker ? '(con Tracking de imagen)' : '(suelo estándar)'}`);
             statusDiv.innerHTML = `<span style="color: blue;">Cargando ${name}...</span>`;
 
             const markerStatus = document.getElementById('marker-status');
             const arModeText = document.getElementById('ar-mode-text');
 
-            // Limpiar escena anterior (eliminar planos de suelo previos)
-            const existingGround = modelViewer.querySelector('div[slot="poster"] img'); // No es exacto pero buscamos limpiar
-            // Para model-viewer, la mejor forma de añadir un suelo es inyectando un elemento plano si el modelo lo permite
-            // o usar el sistema de anotaciones para poner un plano.
-            // Alternativa: Usar un decorador de fondo o inyectar un <div> que actúe de suelo si model-viewer lo permite.
-            // En este caso, model-viewer no permite inyectar geometría fácilmente sin Three.js.
-            // PERO, podemos usar la propiedad 'environment-image' o 'skybox-image' si quisiéramos fondo.
-            // Para "suelo", vamos a usar un truco: añadir un elemento <img> dentro del shadow DOM o como slot.
-
-            // Borrar cualquier suelo anterior
+            // Borrar cualquier suelo/marcador anterior del visor
             const oldGround = document.getElementById('custom-ground');
             if (oldGround) oldGround.remove();
 
             if (url_marker) {
                 markerStatus.style.display = 'block';
-                arModeText.textContent = 'Suelo Personalizado';
+                arModeText.textContent = 'Tracking de Imagen (Postal)';
 
-                // Crear un plano de suelo visual (solo para el visor web)
+                // Crear un plano visual en el visor que represente la postal
                 const ground = document.createElement('div');
                 ground.id = 'custom-ground';
                 ground.style.position = 'absolute';
                 ground.style.bottom = '0';
                 ground.style.left = '50%';
                 ground.style.transform = 'translateX(-50%) rotateX(90deg)';
-                ground.style.width = '300px';
-                ground.style.height = '300px';
+                ground.style.width = '200px';
+                ground.style.height = '200px';
                 ground.style.backgroundImage = `url(${url_marker})`;
-                ground.style.backgroundSize = 'cover';
-                ground.style.opacity = '0.8';
+                ground.style.backgroundSize = 'contain';
+                ground.style.backgroundRepeat = 'no-repeat';
+                ground.style.backgroundPosition = 'center';
+                ground.style.border = '2px solid white';
+                ground.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
                 ground.style.zIndex = '1';
                 ground.style.pointerEvents = 'none';
                 modelViewer.appendChild(ground);
 
-                // En AR, pasamos la imagen como pista para el sistema
+                // Configuración para Image Tracking en WebXR
+                // Para que funcione el tracking real, model-viewer necesita la detección de imagen.
+                // Usamos 'webxr' y pasamos la configuración vía script si fuera necesario, 
+                // pero por ahora configuramos los modos compatibles.
                 modelViewer.setAttribute('ar-modes', 'webxr quick-look');
+
+                // Nota: El tracking real requiere que la imagen esté en el manifest de WebXR.
+                // Esta implementación prepara el visor y el modo AR.
             } else {
                 modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
                 markerStatus.style.display = 'none';
