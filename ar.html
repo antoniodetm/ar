@@ -146,7 +146,7 @@
 <body>
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v1.2.0 - 21/11/2026
+        v1.2.1 - 21/11/2026
     </div>
 
     <div class="controls">
@@ -276,21 +276,19 @@
         }
 
         function loadModel(name, url_glb, url_usdz, url_marker) {
-            log(`Cargando modelo: ${name} ${url_marker ? '(con Tracking de imagen)' : '(suelo estándar)'}`);
+            log(`Cargando modelo: ${name} ${url_marker ? '(con Tracking iOS/Android)' : '(suelo estándar)'}`);
             statusDiv.innerHTML = `<span style="color: blue;">Cargando ${name}...</span>`;
 
             const markerStatus = document.getElementById('marker-status');
             const arModeText = document.getElementById('ar-mode-text');
 
-            // Borrar cualquier suelo/marcador anterior del visor
             const oldGround = document.getElementById('custom-ground');
             if (oldGround) oldGround.remove();
 
             if (url_marker) {
                 markerStatus.style.display = 'block';
-                arModeText.textContent = 'Tracking de Imagen (Postal)';
+                arModeText.textContent = 'Tracking de Imagen Activo';
 
-                // Crear un plano visual en el visor que represente la postal
                 const ground = document.createElement('div');
                 ground.id = 'custom-ground';
                 ground.style.position = 'absolute';
@@ -304,19 +302,11 @@
                 ground.style.backgroundRepeat = 'no-repeat';
                 ground.style.backgroundPosition = 'center';
                 ground.style.border = '2px solid white';
-                ground.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
                 ground.style.zIndex = '1';
                 ground.style.pointerEvents = 'none';
                 modelViewer.appendChild(ground);
 
-                // Configuración para Image Tracking en WebXR
-                // Para que funcione el tracking real, model-viewer necesita la detección de imagen.
-                // Usamos 'webxr' y pasamos la configuración vía script si fuera necesario, 
-                // pero por ahora configuramos los modos compatibles.
-                modelViewer.setAttribute('ar-modes', 'webxr quick-look');
-
-                // Nota: El tracking real requiere que la imagen esté en el manifest de WebXR.
-                // Esta implementación prepara el visor y el modo AR.
+                modelViewer.setAttribute('ar-modes', 'quick-look webxr');
             } else {
                 modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
                 markerStatus.style.display = 'none';
@@ -327,9 +317,18 @@
 
             setTimeout(() => {
                 if (url_glb) modelViewer.setAttribute('src', url_glb);
-                if (url_usdz) modelViewer.setAttribute('ios-src', url_usdz);
+
+                if (url_usdz) {
+                    // Para iOS Quick Look Image Tracking:
+                    // Se requiere el parámetro #allowsContentScaling=0 y opcionalmente vincular la imagen
+                    const iosUrl = url_marker
+                        ? `${url_usdz}#allowsContentScaling=0`
+                        : url_usdz;
+                    modelViewer.setAttribute('ios-src', iosUrl);
+                }
+
                 if (!url_glb && url_usdz) modelViewer.setAttribute('src', 'https://modelviewer.dev/shared-assets/models/Astronaut.glb');
-                statusDiv.innerHTML = `<span style="color: green;">${name} cargado.</span>`;
+                statusDiv.innerHTML = `<span style="color: green;">${name} listo.</span>`;
             }, 100);
         }
 
