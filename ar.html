@@ -131,7 +131,6 @@
             const db = getFirestore(app);
             window.firebaseApp = { storage, db, ref, uploadBytesResumable, getDownloadURL, listAll, deleteObject, collection, addDoc, getDocs, serverTimestamp, query, orderBy, deleteDoc, doc };
             window.dispatchEvent(new Event('firebase-ready'));
-            console.log("Firebase inicializado correctamente.");
         } catch (e) {
             console.error("Error al inicializar Firebase:", e);
         }
@@ -141,7 +140,7 @@
 <body>
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v1.2.3 - 21/11/2026
+        v1.2.4 - 21/11/2026
     </div>
 
     <div class="controls">
@@ -187,7 +186,7 @@
 
     <model-viewer src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
         ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" ar
-        ar-modes="webxr scene-viewer quick-look" camera-controls auto-rotate shadow-intensity="1" alt="Visualizador 3D"
+        ar-modes="quick-look webxr scene-viewer" camera-controls auto-rotate shadow-intensity="1" alt="Visualizador 3D"
         id="main-viewer">
         <div id="marker-status"
             style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 5px; font-size: 12px; display: none; z-index: 10;">
@@ -222,14 +221,11 @@
         markerInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             if (currentMarkerBlobUrl) URL.revokeObjectURL(currentMarkerBlobUrl);
             currentMarkerBlobUrl = URL.createObjectURL(file);
-
             document.getElementById('marker-filename').textContent = file.name;
             document.getElementById('current-marker-info').style.display = 'block';
-            log(`Postal cargada localmente: ${file.name}. Se aplicará a cualquier modelo que elijas.`);
-
+            log(`Postal lista: ${file.name}.`);
             if (modelViewer.dataset.lastModel) {
                 const data = JSON.parse(modelViewer.dataset.lastModel);
                 loadModel(data.name, data.url_glb, data.url_usdz);
@@ -241,53 +237,40 @@
             currentMarkerBlobUrl = null;
             markerInput.value = '';
             document.getElementById('current-marker-info').style.display = 'none';
-            log('Postal eliminada. Volviendo a modo suelo.');
-
+            log('Tracking desactivado.');
             if (modelViewer.dataset.lastModel) {
                 const data = JSON.parse(modelViewer.dataset.lastModel);
                 loadModel(data.name, data.url_glb, data.url_usdz);
             }
         }
 
-        modelViewer.addEventListener('error', (error) => {
-            log('Error del visor: ' + error.detail.type);
-        });
-
         async function loadModelsList() {
-            log('Consultando base de datos...');
+            log('Sincronizando...');
             if (!window.firebaseApp) return;
             try {
                 const { db, collection, getDocs, query, orderBy } = window.firebaseApp;
-                const q = query(collection(db, 'models'), orderBy('createdAt', 'desc'));
-                const snap = await getDocs(q);
+                const snap = await getDocs(query(collection(db, 'models'), orderBy('createdAt', 'desc')));
                 listContainer.innerHTML = '';
-                if (snap.empty) {
-                    listContainer.innerHTML = '<p style="color: #999; font-size: 12px;">No hay modelos.</p>';
-                    return;
-                }
+                if (snap.empty) { listContainer.innerHTML = '<p>Sin modelos.</p>'; return; }
                 snap.forEach(docSnap => {
                     const data = docSnap.data();
-                    const docId = docSnap.id;
                     const item = document.createElement('div');
                     item.className = 'model-item';
                     item.innerHTML = `
                         <div style="flex-grow: 1;" onclick="loadModel('${data.name}', '${data.url_glb || ''}', '${data.url_usdz || ''}')">
                             <span style="font-weight: 500;">${data.name}</span>
                         </div>
-                        <button onclick="deleteModel('${docId}', '${data.name}')" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 18px; padding: 5px 10px;">🗑️</button>
+                        <button onclick="deleteModel('${docSnap.id}', '${data.name}')" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 18px;">🗑️</button>
                     `;
                     listContainer.appendChild(item);
                 });
-            } catch (e) {
-                log('Error Firestore: ' + e.message);
-            }
+            } catch (e) { log('Error: ' + e.message); }
         }
 
         function loadModel(name, url_glb, url_usdz) {
             modelViewer.dataset.lastModel = JSON.stringify({ name, url_glb, url_usdz });
             const hasMarker = !!currentMarkerBlobUrl;
-
-            log(`Cargando: ${name} ${hasMarker ? '(Modo Tracking)' : '(Modo Suelo)'}`);
+            log(`Cargando: ${name} ${hasMarker ? '[TRACKING]' : '[SUELO]'}`);
 
             const markerStatus = document.getElementById('marker-status');
             const arModeText = document.getElementById('ar-mode-text');
@@ -303,15 +286,11 @@
                 ground.style.bottom = '0';
                 ground.style.left = '50%';
                 ground.style.transform = 'translateX(-50%) rotateX(90deg)';
-                ground.style.width = '200px';
-                ground.style.height = '200px';
+                ground.style.width = '200px'; ground.style.height = '200px';
                 ground.style.backgroundImage = `url(${currentMarkerBlobUrl})`;
-                ground.style.backgroundSize = 'contain';
-                ground.style.backgroundRepeat = 'no-repeat';
-                ground.style.backgroundPosition = 'center';
-                ground.style.border = '2px solid white';
-                ground.style.zIndex = '1';
-                ground.style.pointerEvents = 'none';
+                ground.style.backgroundSize = 'contain'; ground.style.backgroundRepeat = 'no-repeat';
+                ground.style.backgroundPosition = 'center'; ground.style.border = '2px solid white';
+                ground.style.zIndex = '1'; ground.style.pointerEvents = 'none';
                 modelViewer.appendChild(ground);
                 modelViewer.setAttribute('ar-modes', 'quick-look webxr');
             } else {
@@ -325,24 +304,24 @@
             setTimeout(() => {
                 if (url_glb) modelViewer.setAttribute('src', url_glb);
                 if (url_usdz) {
+                    // iOS IMAGE ANCHORING: El parámetro allowsContentScaling=0 es vital
+                    // para que Quick Look intente fijar el objeto a una referencia real.
                     const iosUrl = hasMarker ? `${url_usdz}#allowsContentScaling=0` : url_usdz;
                     modelViewer.setAttribute('ios-src', iosUrl);
                 }
-                statusDiv.innerHTML = `<span style="color: green;">${name} listo.</span>`;
             }, 100);
         }
 
         async function deleteModel(docId, name) {
-            if (!confirm(`¿Borrar "${name}"?`)) return;
+            if (!confirm(`¿Borrar ${name}?`)) return;
             const { db, storage, ref, deleteObject, doc, deleteDoc } = window.firebaseApp;
             try {
-                const extensions = ['glb', 'usdz'];
-                for (const ext of extensions) {
-                    try { await deleteObject(ref(storage, `ar/${name}.${ext}`)); } catch (err) { }
+                for (const ext of ['glb', 'usdz']) {
+                    try { await deleteObject(ref(storage, `ar/${name}.${ext}`)); } catch (e) { }
                 }
                 await deleteDoc(doc(db, 'models', docId));
                 loadModelsList();
-            } catch (err) { log('Error: ' + err.message); }
+            } catch (e) { log('Error al borrar.'); }
         }
 
         fileInput.addEventListener('change', async (e) => {
@@ -351,25 +330,24 @@
             const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
             const groups = {};
             files.forEach(f => {
-                const name = f.name.substring(0, f.name.lastIndexOf('.'));
-                if (!groups[name]) groups[name] = {};
+                const n = f.name.substring(0, f.name.lastIndexOf('.'));
+                if (!groups[n]) groups[n] = {};
                 const ext = f.name.split('.').pop().toLowerCase();
-                if (ext === 'glb' || ext === 'gltf') groups[name].glb = f;
-                if (ext === 'usdz') groups[name].usdz = f;
+                if (ext === 'glb' || ext === 'gltf') groups[n].glb = f;
+                if (ext === 'usdz') groups[n].usdz = f;
             });
-
-            for (const name in groups) {
-                log(`Subiendo ${name}...`);
+            for (const n in groups) {
+                log(`Subiendo ${n}...`);
                 let urls = {};
-                if (groups[name].glb) {
-                    const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[name].glb.name), groups[name].glb);
+                if (groups[n].glb) {
+                    const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[n].glb.name), groups[n].glb);
                     urls.glb = await getDownloadURL(s.ref);
                 }
-                if (groups[name].usdz) {
-                    const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[name].usdz.name), groups[name].usdz);
+                if (groups[n].usdz) {
+                    const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[n].usdz.name), groups[n].usdz);
                     urls.usdz = await getDownloadURL(s.ref);
                 }
-                await addDoc(collection(db, 'models'), { name, url_glb: urls.glb || null, url_usdz: urls.usdz || null, createdAt: serverTimestamp() });
+                await addDoc(collection(db, 'models'), { name: n, url_glb: urls.glb || null, url_usdz: urls.usdz || null, createdAt: serverTimestamp() });
             }
             loadModelsList();
         });
@@ -383,7 +361,7 @@
             try {
                 const res = await listAll(ref(storage, 'ar'));
                 log(`Storage: ${res.items.length} ficheros.`);
-            } catch (e) { log('Error: ' + e.message); }
+            } catch (e) { log('Error en storage.'); }
         }
     </script>
 </body>
