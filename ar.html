@@ -146,7 +146,7 @@
 <body>
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v1.2.1 - 21/11/2026
+        v1.2.2 - 21/11/2026
     </div>
 
     <div class="controls">
@@ -253,13 +253,17 @@
                     const docId = docSnap.id;
                     const item = document.createElement('div');
                     item.className = 'model-item';
+
                     let formats = [];
                     if (data.url_glb) formats.push('Android');
                     if (data.url_usdz) formats.push('iOS');
-                    if (data.url_marker) formats.push('🎯Tracking');
+
+                    // IMPORTANTE: Asegurarnos de que url_marker existe en los datos
+                    const markerUrl = data.url_marker || '';
+                    if (markerUrl) formats.push('🎯Tracking');
 
                     item.innerHTML = `
-                        <div style="flex-grow: 1;" onclick="loadModel('${data.name}', '${data.url_glb || ''}', '${data.url_usdz || ''}', '${data.url_marker || ''}')">
+                        <div style="flex-grow: 1;" onclick="loadModel('${data.name}', '${data.url_glb || ''}', '${data.url_usdz || ''}', '${markerUrl}')">
                             <span style="font-weight: 500;">${data.name}</span><br>
                             <span style="font-size: 10px; color: #888;">${formats.join(' / ')}</span>
                         </div>
@@ -276,7 +280,13 @@
         }
 
         function loadModel(name, url_glb, url_usdz, url_marker) {
-            log(`Cargando modelo: ${name} ${url_marker ? '(con Tracking iOS/Android)' : '(suelo estándar)'}`);
+            // Depuración de parámetros
+            console.log("loadModel params:", { name, url_glb, url_usdz, url_marker });
+
+            // Validar si realmente tenemos un marcador (no nulo, no vacío, no string "null")
+            const hasMarker = (url_marker && url_marker !== "" && url_marker !== "null" && url_marker !== "undefined");
+
+            log(`Cargando modelo: ${name} ${hasMarker ? '(con Tracking)' : '(suelo estándar)'}`);
             statusDiv.innerHTML = `<span style="color: blue;">Cargando ${name}...</span>`;
 
             const markerStatus = document.getElementById('marker-status');
@@ -285,7 +295,7 @@
             const oldGround = document.getElementById('custom-ground');
             if (oldGround) oldGround.remove();
 
-            if (url_marker) {
+            if (hasMarker) {
                 markerStatus.style.display = 'block';
                 arModeText.textContent = 'Tracking de Imagen Activo';
 
@@ -319,9 +329,8 @@
                 if (url_glb) modelViewer.setAttribute('src', url_glb);
 
                 if (url_usdz) {
-                    // Para iOS Quick Look Image Tracking:
-                    // Se requiere el parámetro #allowsContentScaling=0 y opcionalmente vincular la imagen
-                    const iosUrl = url_marker
+                    // Para iOS Quick Look Image Tracking
+                    const iosUrl = hasMarker
                         ? `${url_usdz}#allowsContentScaling=0`
                         : url_usdz;
                     modelViewer.setAttribute('ios-src', iosUrl);
