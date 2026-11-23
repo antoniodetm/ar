@@ -137,7 +137,17 @@
             width: 100vw;
             height: 100vh;
             z-index: 10000;
-            background: black;
+            background: transparent;
+            /* Transparente para ver la cámara */
+        }
+
+        /* Forzar que el video de MindAR se vea */
+        .mindar-ui-overlay {
+            z-index: 10002;
+        }
+
+        canvas.a-canvas {
+            z-index: 10001;
         }
 
         #close-ar {
@@ -215,7 +225,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.4 (MindAR Engine + Progress Tracker) - 23/11/2026
+        v2.0.5 (MindAR Engine + Camera Fix) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -280,13 +290,12 @@
     <div id="ar-screen">
         <button id="close-ar">✕</button>
         <div id="ar-overlay">Encuentra el marcador para ver el modelo</div>
-        <a-scene id="ar-scene" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
+        <a-scene id="ar-scene" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
             vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
             <a-assets id="ar-assets">
                 <!-- El modelo se inyectará aquí -->
             </a-assets>
-            <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"
-                raycaster="far: 10000; objects: .clickable"></a-camera>
+            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
             <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
                 <!-- El contenido AR se inyectará aquí -->
             </a-entity>
