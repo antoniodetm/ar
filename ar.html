@@ -4,43 +4,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visualizador AR 3D</title>
+    <title>Visualizador AR con MindAR</title>
+
+    <!-- Librerías de AR y 3D -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
     <style>
         body {
             margin: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f0f0;
+            overflow-x: hidden;
+        }
+
+        #ui-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #f0f0f0;
-            min-height: 100vh;
             padding-bottom: 40px;
+            min-height: 100vh;
         }
 
         model-viewer {
             width: 95%;
-            height: 60vh;
+            height: 40vh;
             background-color: #ffffff;
             border-radius: 15px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            margin: 20px 0;
         }
 
         .controls {
-            padding: 20px;
+            padding: 10px;
             text-align: center;
+            width: 100%;
+            max-width: 500px;
         }
 
-        #ar-button {
+        .btn-primary {
             background-color: #007AFF;
             border-radius: 8px;
             border: none;
             color: white;
-            padding: 12px 24px;
+            padding: 14px 28px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            margin-top: 10px;
+        }
+
+        .btn-ar {
+            background-color: #34c759;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         .upload-container {
@@ -52,13 +86,11 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
+            width: 90%;
         }
 
+        #file-input,
         #marker-input {
-            display: none;
-        }
-
-        #file-input {
             display: none;
         }
 
@@ -69,45 +101,90 @@
             cursor: pointer;
             background-color: #f8f9fa;
             border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-
-        .custom-file-upload:hover {
-            background-color: #e2e6ea;
+            font-size: 14px;
         }
 
         .models-list {
             margin-top: 20px;
             width: 90%;
-            max-width: 400px;
             background: white;
             padding: 15px;
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            max-height: 250px;
+            max-height: 200px;
             overflow-y: auto;
         }
 
         .model-item {
-            padding: 10px;
+            padding: 12px;
             border-bottom: 1px solid #eee;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: background 0.2s;
         }
 
         .model-item:hover {
             background-color: #f0f7ff;
         }
 
-        .model-item:last-child {
-            border-bottom: none;
+        /* Estilos para la escena AR */
+        #ar-screen {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 10000;
+            background: black;
+        }
+
+        #close-ar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10001;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #ar-overlay {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            z-index: 10001;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            font-size: 18px;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 20000;
         }
     </style>
-    <!-- Importar el componente model-viewer -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 
     <!-- Firebase SDK -->
     <script type="module">
@@ -115,7 +192,6 @@
         import { getStorage, ref, uploadBytesResumable, getDownloadURL, listAll, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
         import { getFirestore, collection, addDoc, getDocs, serverTimestamp, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyCDvgv6A8ugOmfgX9jKiCp_0ccyomxYOk0",
             authDomain: "rutas-e051f.firebaseapp.com",
@@ -131,249 +207,259 @@
             const db = getFirestore(app);
             window.firebaseApp = { storage, db, ref, uploadBytesResumable, getDownloadURL, listAll, deleteObject, collection, addDoc, getDocs, serverTimestamp, query, orderBy, deleteDoc, doc };
             window.dispatchEvent(new Event('firebase-ready'));
-        } catch (e) {
-            console.error("Error al inicializar Firebase:", e);
-        }
+        } catch (e) { console.error("Firebase Error:", e); }
     </script>
 </head>
 
 <body>
-    <div
-        style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v1.2.4 - 21/11/2026
+    <!-- Pantalla de carga -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div
+            style="border: 4px solid #f3f3f3; border-top: 4px solid #007AFF; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;">
+        </div>
+        <p id="loading-text" style="margin-top: 15px; font-weight: bold;">Preparando AR...</p>
     </div>
+    <style>
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
 
-    <div class="controls">
-        <h1>Visualizador 3D AR</h1>
-        <div class="upload-container">
-            <label for="file-input" class="custom-file-upload">📂 Cargar nuevos modelos (.glb/.usdz)</label>
-            <input id="file-input" type="file" accept=".glb,.gltf,.usdz" multiple />
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
 
-            <div style="border-top: 1px solid #eee; padding-top: 10px; margin-top: 5px;">
-                <p style="font-size: 12px; margin: 0 0 10px 0; font-weight: bold; color: #007AFF;">🎯 Modo Tracking de
-                    Imagen</p>
-                <label for="marker-input" class="custom-file-upload"
-                    style="background-color: #f0fdf4; border-color: #bbf7d0; font-size: 13px;">🖼️ Seleccionar Postal /
-                    Marcador</label>
-                <input id="marker-input" type="file" accept="image/*" />
-                <div id="current-marker-info" style="font-size: 11px; color: #16a34a; margin-top: 5px; display: none;">
-                    ✅ Postal lista: <span id="marker-filename"></span>
-                    <button onclick="clearCurrentMarker()"
-                        style="margin-left: 5px; color: red; cursor: pointer; border: none; background: none; font-size: 14px;">✕</button>
+    <!-- UI Principal -->
+    <div id="ui-container">
+        <div class="controls">
+            <h1 style="margin-bottom: 5px;">AR Pro (MindAR)</h1>
+            <p style="font-size: 12px; color: #666; margin-top: 0;">Tracking de Imagen real sin escaneo de suelo</p>
+
+            <div class="upload-container">
+                <label for="file-input" class="custom-file-upload">📂 Subir Modelos (.glb)</label>
+                <input id="file-input" type="file" accept=".glb,.gltf" multiple />
+
+                <div style="border-top: 1px solid #eee; padding-top: 10px;">
+                    <label for="marker-input" class="custom-file-upload"
+                        style="background-color: #f0fdf4; border-color: #bbf7d0;">🖼️ Seleccionar Marcador
+                        (Imagen)</label>
+                    <input id="marker-input" type="file" accept="image/*" />
+                    <div id="marker-preview-info"
+                        style="font-size: 12px; color: #16a34a; margin-top: 8px; display: none;">
+                        ✅ Marcador listo: <span id="marker-name"></span>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div id="upload-status" style="margin-top: 10px; font-size: 14px; color: #666;"></div>
+        <div class="models-list">
+            <h3 style="margin: 0 0 10px 0;">📦 Modelos</h3>
+            <div id="list-container">Cargando...</div>
+        </div>
+
+        <model-viewer id="main-viewer" camera-controls auto-rotate shadow-intensity="1"
+            src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" alt="Previsualización"></model-viewer>
+
+        <button id="start-ar-btn" class="btn-primary" style="display: none;">🚀 INICIAR AR (MindAR)</button>
+
+        <div id="debug-log"
+            style="width: 90%; max-width: 500px; font-family: monospace; font-size: 10px; color: #666; margin-top: 10px; text-align: left; padding: 10px;">
+            > Listo para empezar
         </div>
     </div>
 
-    <div class="models-list" id="models-list">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0;">📦 Modelos disponibles</h3>
-            <div>
-                <button onclick="debugListStorage()" title="Debug Storage"
-                    style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: #eee; border-radius: 4px; padding: 2px 8px;">🔍</button>
-                <button onclick="loadModelsList()"
-                    style="font-size: 12px; cursor: pointer; border: 1px solid #ccc; background: white; border-radius: 4px; padding: 2px 8px;">🔄</button>
-            </div>
-        </div>
-        <div id="list-container" style="margin-top: 10px;">Cargando lista...</div>
-    </div>
-
-    <div class="controls">
-        <p>Toca un modelo de la lista para verlo aquí debajo:</p>
-    </div>
-
-    <model-viewer src="https://modelviewer.dev/shared-assets/models/Astronaut.glb"
-        ios-src="https://modelviewer.dev/shared-assets/models/Astronaut.usdz" ar
-        ar-modes="quick-look webxr scene-viewer" camera-controls auto-rotate shadow-intensity="1" alt="Visualizador 3D"
-        id="main-viewer">
-        <div id="marker-status"
-            style="position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.7); padding: 5px; border-radius: 5px; font-size: 12px; display: none; z-index: 10;">
-            Modo: <span id="ar-mode-text">Suelo</span>
-        </div>
-        <button slot="ar-button" id="ar-button">👋 Ver en tu espacio (AR)</button>
-        <div id="ar-info-note"
-            style="position: absolute; bottom: -30px; left: 0; right: 0; font-size: 10px; color: #666; text-align: center; pointer-events: none;">
-            Nota: iOS (iPhone) solicita escanear el suelo para inicializar ARKit.
-        </div>
-    </model-viewer>
-
-    <div id="debug-console"
-        style="width: 90%; max-width: 400px; background: #333; color: #0f0; font-family: monospace; font-size: 10px; padding: 10px; border-radius: 5px; margin-top: 10px; height: 80px; overflow-y: auto;">
-        <div>> Sistema listo</div>
+    <!-- Pantalla AR (A-Frame + MindAR) -->
+    <div id="ar-screen">
+        <button id="close-ar">✕</button>
+        <div id="ar-overlay">Encuentra el marcador para ver el modelo</div>
+        <a-scene id="ar-scene" embedded color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
+            vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+            <a-assets id="ar-assets">
+                <!-- El modelo se inyectará aquí -->
+            </a-assets>
+            <a-camera position="0 0 0" look-controls="enabled: false" cursor="fuse: false; rayOrigin: mouse;"
+                raycaster="far: 10000; objects: .clickable"></a-camera>
+            <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+                <!-- El contenido AR se inyectará aquí -->
+            </a-entity>
+        </a-scene>
     </div>
 
     <script>
+        const logDiv = document.getElementById('debug-log');
         function log(msg) {
-            const consoleDiv = document.getElementById('debug-console');
             const entry = document.createElement('div');
             entry.textContent = `> ${msg}`;
-            consoleDiv.appendChild(entry);
-            consoleDiv.scrollTop = consoleDiv.scrollHeight;
-            console.log("LOG:", msg);
+            logDiv.appendChild(entry);
+            console.log(msg);
         }
 
         const modelViewer = document.getElementById('main-viewer');
-        const fileInput = document.getElementById('file-input');
+        const startArBtn = document.getElementById('start-ar-btn');
         const markerInput = document.getElementById('marker-input');
-        const statusDiv = document.getElementById('upload-status');
+        const fileInput = document.getElementById('file-input');
         const listContainer = document.getElementById('list-container');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
-        let currentMarkerBlobUrl = null;
+        let currentMarkerImg = null;
+        let selectedModelUrl = null;
 
-        markerInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            if (currentMarkerBlobUrl) URL.revokeObjectURL(currentMarkerBlobUrl);
-            currentMarkerBlobUrl = URL.createObjectURL(file);
-            document.getElementById('marker-filename').textContent = file.name;
-            document.getElementById('current-marker-info').style.display = 'block';
-            log(`Postal lista: ${file.name}.`);
-            if (modelViewer.dataset.lastModel) {
-                const data = JSON.parse(modelViewer.dataset.lastModel);
-                loadModel(data.name, data.url_glb, data.url_usdz);
-            }
-        });
-
-        function clearCurrentMarker() {
-            if (currentMarkerBlobUrl) URL.revokeObjectURL(currentMarkerBlobUrl);
-            currentMarkerBlobUrl = null;
-            markerInput.value = '';
-            document.getElementById('current-marker-info').style.display = 'none';
-            log('Tracking desactivado.');
-            if (modelViewer.dataset.lastModel) {
-                const data = JSON.parse(modelViewer.dataset.lastModel);
-                loadModel(data.name, data.url_glb, data.url_usdz);
-            }
-        }
-
+        // Cargar lista de modelos
         async function loadModelsList() {
-            log('Sincronizando...');
             if (!window.firebaseApp) return;
             try {
                 const { db, collection, getDocs, query, orderBy } = window.firebaseApp;
                 const snap = await getDocs(query(collection(db, 'models'), orderBy('createdAt', 'desc')));
                 listContainer.innerHTML = '';
-                if (snap.empty) { listContainer.innerHTML = '<p>Sin modelos.</p>'; return; }
+                if (snap.empty) { listContainer.innerHTML = 'Sin modelos.'; return; }
                 snap.forEach(docSnap => {
                     const data = docSnap.data();
                     const item = document.createElement('div');
                     item.className = 'model-item';
                     item.innerHTML = `
-                        <div style="flex-grow: 1;" onclick="loadModel('${data.name}', '${data.url_glb || ''}', '${data.url_usdz || ''}')">
-                            <span style="font-weight: 500;">${data.name}</span>
+                        <div style="flex-grow: 1;" onclick="selectModel('${data.name}', '${data.url_glb}')">
+                            <strong>${data.name}</strong>
                         </div>
-                        <button onclick="deleteModel('${docSnap.id}', '${data.name}')" style="background: none; border: none; color: #ff4444; cursor: pointer; font-size: 18px;">🗑️</button>
+                        <button onclick="deleteModel('${docSnap.id}', '${data.name}')" style="background:none; border:none; color:red; cursor:pointer;">🗑️</button>
                     `;
                     listContainer.appendChild(item);
                 });
-            } catch (e) { log('Error: ' + e.message); }
+            } catch (e) { log('Error lista: ' + e.message); }
         }
 
-        function loadModel(name, url_glb, url_usdz) {
-            modelViewer.dataset.lastModel = JSON.stringify({ name, url_glb, url_usdz });
-            const hasMarker = !!currentMarkerBlobUrl;
-            log(`Cargando: ${name} ${hasMarker ? '[TRACKING]' : '[SUELO]'}`);
+        function selectModel(name, url) {
+            selectedModelUrl = url;
+            modelViewer.src = url;
+            log(`Seleccionado: ${name}`);
+            checkReady();
+        }
 
-            const markerStatus = document.getElementById('marker-status');
-            const arModeText = document.getElementById('ar-mode-text');
-            const oldGround = document.getElementById('custom-ground');
-            if (oldGround) oldGround.remove();
+        markerInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentMarkerImg = event.target.result;
+                document.getElementById('marker-name').textContent = file.name;
+                document.getElementById('marker-preview-info').style.display = 'block';
+                log(`Marcador cargado: ${file.name}`);
+                checkReady();
+            };
+            reader.readAsDataURL(file);
+        });
 
-            if (hasMarker) {
-                markerStatus.style.display = 'block';
-                arModeText.textContent = 'Tracking de Imagen Activo';
-                const ground = document.createElement('div');
-                ground.id = 'custom-ground';
-                ground.style.position = 'absolute';
-                ground.style.bottom = '0';
-                ground.style.left = '50%';
-                ground.style.transform = 'translateX(-50%) rotateX(90deg)';
-                ground.style.width = '200px'; ground.style.height = '200px';
-                ground.style.backgroundImage = `url(${currentMarkerBlobUrl})`;
-                ground.style.backgroundSize = 'contain'; ground.style.backgroundRepeat = 'no-repeat';
-                ground.style.backgroundPosition = 'center'; ground.style.border = '2px solid white';
-                ground.style.zIndex = '1'; ground.style.pointerEvents = 'none';
-                modelViewer.appendChild(ground);
-
-                // Priorizamos WebXR para intentar tracking de imagen si el navegador lo soporta
-                modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
-            } else {
-                modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
-                markerStatus.style.display = 'none';
+        function checkReady() {
+            if (selectedModelUrl && currentMarkerImg) {
+                startArBtn.style.display = 'block';
+                startArBtn.classList.add('btn-ar');
             }
-
-            modelViewer.removeAttribute('src');
-            modelViewer.removeAttribute('ios-src');
-
-            setTimeout(() => {
-                if (url_glb) modelViewer.setAttribute('src', url_glb);
-                if (url_usdz) {
-                    // Para iOS Quick Look, el comportamiento por defecto es buscar superficies (suelo).
-                    // El tracking de imagen real en iOS requiere archivos .reality con anchors definidos.
-                    // Usamos allowsContentScaling=0 para mantener la escala real del modelo.
-                    let iosUrl = url_usdz;
-                    if (hasMarker) {
-                        iosUrl += (iosUrl.includes('#') ? '&' : '#') + 'allowsContentScaling=0';
-                        log("Info: iOS Quick Look requiere escanear el suelo primero para inicializar la escala.");
-                    }
-                    modelViewer.setAttribute('ios-src', iosUrl);
-                }
-            }, 100);
         }
+
+        // --- LÓGICA DE MINDAR DINÁMICO ---
+        startArBtn.addEventListener('click', async () => {
+            if (!currentMarkerImg) return alert("Por favor, selecciona una imagen de marcador primero.");
+
+            loadingOverlay.style.display = 'flex';
+            document.getElementById('loading-text').textContent = 'Compilando marcador...';
+
+            try {
+                log("Compilando marcador dinámico...");
+                const img = new Image();
+                img.src = currentMarkerImg;
+                await img.decode();
+
+                const compiler = new window.MINDAR.IMAGE.Compiler();
+                const dataList = await compiler.compileImageTargets([img]);
+                const buffer = compiler.exportData();
+                const blob = new Blob([buffer], { type: 'application/octet-stream' });
+                const mindUrl = URL.createObjectURL(blob);
+
+                log("Compilación completada.");
+                initMindAR(mindUrl);
+            } catch (e) {
+                console.error(e);
+                alert("Error al iniciar AR: " + e.message);
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        function initMindAR(mindUrl) {
+            log("Iniciando escena MindAR...");
+            const arScreen = document.getElementById('ar-screen');
+            const arScene = document.getElementById('ar-scene');
+            const arTarget = document.getElementById('ar-target');
+            const arAssets = document.getElementById('ar-assets');
+
+            // Limpiar contenido previo
+            arTarget.innerHTML = '';
+            arAssets.innerHTML = '';
+
+            // Configurar el modelo
+            const modelAsset = document.createElement('a-asset-item');
+            modelAsset.setAttribute('id', 'dynamic-model');
+            modelAsset.setAttribute('src', selectedModelUrl);
+            arAssets.appendChild(modelAsset);
+
+            const entity = document.createElement('a-gltf-model');
+            entity.setAttribute('src', '#dynamic-model');
+            entity.setAttribute('rotation', '0 0 0');
+            entity.setAttribute('position', '0 0 0');
+            entity.setAttribute('scale', '0.5 0.5 0.5');
+            entity.classList.add('clickable');
+            arTarget.appendChild(entity);
+
+            // Inyectar la URL del archivo .mind generado dinámicamente
+            arScene.setAttribute('mindar-image', `imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;`);
+
+            // Mostrar la pantalla AR
+            arScreen.style.display = 'block';
+
+            log("AR Listo. Busca la imagen marcador con tu cámara.");
+            loadingOverlay.style.display = 'none';
+        }
+
+        document.getElementById('close-ar').addEventListener('click', () => {
+            location.reload(); // Forma más segura de detener la cámara y limpiar memoria
+        });
+
+        // --- FIREBASE SUBIDA ---
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
+
+            loadingOverlay.style.display = 'flex';
+            document.getElementById('loading-text').textContent = 'Subiendo modelos...';
+
+            for (const file of files) {
+                const name = file.name.split('.')[0];
+                log(`Subiendo ${name}...`);
+                const s = await uploadBytesResumable(ref(storage, 'ar/' + file.name), file);
+                const url = await getDownloadURL(s.ref);
+                await addDoc(collection(db, 'models'), {
+                    name: name,
+                    url_glb: url,
+                    createdAt: serverTimestamp()
+                });
+            }
+            loadingOverlay.style.display = 'none';
+            loadModelsList();
+        });
 
         async function deleteModel(docId, name) {
             if (!confirm(`¿Borrar ${name}?`)) return;
             const { db, storage, ref, deleteObject, doc, deleteDoc } = window.firebaseApp;
             try {
-                for (const ext of ['glb', 'usdz']) {
-                    try { await deleteObject(ref(storage, `ar/${name}.${ext}`)); } catch (e) { }
-                }
+                await deleteObject(ref(storage, `ar/${name}.glb`));
                 await deleteDoc(doc(db, 'models', docId));
                 loadModelsList();
-            } catch (e) { log('Error al borrar.'); }
+            } catch (e) { log('Error borrado.'); }
         }
-
-        fileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-            const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
-            const groups = {};
-            files.forEach(f => {
-                const n = f.name.substring(0, f.name.lastIndexOf('.'));
-                if (!groups[n]) groups[n] = {};
-                const ext = f.name.split('.').pop().toLowerCase();
-                if (ext === 'glb' || ext === 'gltf') groups[n].glb = f;
-                if (ext === 'usdz') groups[n].usdz = f;
-            });
-            for (const n in groups) {
-                log(`Subiendo ${n}...`);
-                let urls = {};
-                if (groups[n].glb) {
-                    const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[n].glb.name), groups[n].glb);
-                    urls.glb = await getDownloadURL(s.ref);
-                }
-                if (groups[n].usdz) {
-                    const s = await uploadBytesResumable(ref(storage, 'ar/' + groups[n].usdz.name), groups[n].usdz);
-                    urls.usdz = await getDownloadURL(s.ref);
-                }
-                await addDoc(collection(db, 'models'), { name: n, url_glb: urls.glb || null, url_usdz: urls.usdz || null, createdAt: serverTimestamp() });
-            }
-            loadModelsList();
-        });
 
         if (window.firebaseApp) loadModelsList();
         else window.addEventListener('firebase-ready', loadModelsList);
-
-        async function debugListStorage() {
-            if (!window.firebaseApp) return;
-            const { storage, ref, listAll } = window.firebaseApp;
-            try {
-                const res = await listAll(ref(storage, 'ar'));
-                log(`Storage: ${res.items.length} ficheros.`);
-            } catch (e) { log('Error en storage.'); }
-        }
     </script>
 </body>
 
