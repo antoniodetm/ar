@@ -75,6 +75,31 @@
             animation: pulse 2s infinite;
         }
 
+        .mode-selector {
+            display: flex;
+            background: #e2e2e2;
+            padding: 4px;
+            border-radius: 10px;
+            margin: 15px 0;
+            width: 85%;
+        }
+
+        .mode-option {
+            flex: 1;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .mode-option.active {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            color: #007AFF;
+        }
+
         @keyframes pulse {
             0% {
                 transform: scale(1);
@@ -140,7 +165,6 @@
             background-color: #f0f7ff;
         }
 
-        /* Estilos para la escena AR */
         #ar-screen {
             display: none;
             position: fixed;
@@ -150,47 +174,6 @@
             height: 100vh;
             z-index: 10000;
             background: transparent;
-            /* Transparente para ver la cámara */
-        }
-
-        /* Forzar que el video de MindAR se vea */
-        .mindar-ui-overlay {
-            z-index: 10002;
-        }
-
-        canvas.a-canvas {
-            z-index: 10001;
-        }
-
-        #close-ar {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            z-index: 10001;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border: 2px solid white;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #ar-overlay {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            right: 0;
-            text-align: center;
-            z-index: 10001;
-            color: white;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
-            pointer-events: none;
-            font-size: 18px;
         }
 
         .loading-overlay {
@@ -237,10 +220,9 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.1.0 (MindAR Engine + Model Fix) - 23/11/2026
+        v2.3.0 (Marker Only + Orientation Control) - 23/11/2026
     </div>
 
-    <!-- Pantalla de carga -->
     <div id="loading-overlay" class="loading-overlay">
         <div
             style="border: 4px solid #f3f3f3; border-top: 4px solid #007AFF; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;">
@@ -259,7 +241,6 @@
         }
     </style>
 
-    <!-- UI Principal -->
     <div id="ui-container">
         <div class="controls">
             <h1 style="margin-bottom: 5px;">AR Pro (MindAR)</h1>
@@ -290,7 +271,13 @@
         <model-viewer id="main-viewer" camera-controls auto-rotate shadow-intensity="1"
             src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" alt="Previsualización"></model-viewer>
 
-        <button id="start-ar-btn" class="btn-primary" style="display: none;">🚀 INICIAR AR (MindAR)</button>
+        <p style="font-size: 13px; font-weight: bold; margin-bottom: 5px;">Orientación del modelo en el marcador:</p>
+        <div class="mode-selector">
+            <div id="orient-stand" class="mode-option active" onclick="setOrientation('stand')">Estar de Pie</div>
+            <div id="orient-flat" class="mode-option" onclick="setOrientation('flat')">Estar Tumbado</div>
+        </div>
+
+        <button id="start-ar-btn" class="btn-primary" style="display: none;">🚀 INICIAR AR</button>
 
         <div id="debug-log"
             style="width: 90%; max-width: 500px; font-family: monospace; font-size: 10px; color: #666; margin-top: 10px; text-align: left; padding: 10px;">
@@ -298,21 +285,7 @@
         </div>
     </div>
 
-    <!-- Pantalla AR (A-Frame + MindAR) -->
-    <div id="ar-screen">
-        <button id="close-ar">✕</button>
-        <div id="ar-overlay">Encuentra el marcador para ver el modelo</div>
-        <a-scene id="ar-scene" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
-            vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-            <a-assets id="ar-assets">
-                <!-- El modelo se inyectará aquí -->
-            </a-assets>
-            <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-            <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-                <!-- El contenido AR se inyectará aquí -->
-            </a-entity>
-        </a-scene>
-    </div>
+    <div id="ar-screen"></div>
 
     <script>
         const logDiv = document.getElementById('debug-log');
@@ -332,8 +305,15 @@
 
         let currentMarkerImg = null;
         let selectedModelUrl = null;
+        let modelOrientation = 'stand';
 
-        // Cargar lista de modelos
+        function setOrientation(orient) {
+            modelOrientation = orient;
+            document.getElementById('orient-stand').classList.toggle('active', orient === 'stand');
+            document.getElementById('orient-flat').classList.toggle('active', orient === 'flat');
+            log(`Orientación cambiada a: ${orient === 'stand' ? 'De Pie' : 'Tumbado'}`);
+        }
+
         async function loadModelsList() {
             if (!window.firebaseApp) return;
             try {
@@ -382,169 +362,93 @@
                 if (window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.Compiler) {
                     startArBtn.style.display = 'block';
                     startArBtn.classList.add('btn-ar');
-                    log("Sistema AR listo para compilar.");
+                    log("Sistema AR listo.");
                 } else {
-                    log("Esperando a que las librerías AR carguen...");
+                    log("Esperando a las librerías...");
                     setTimeout(checkReady, 1000);
                 }
             }
         }
 
-        // --- LÓGICA DE MINDAR DINÁMICO ---
         startArBtn.addEventListener('click', async () => {
-            if (!currentMarkerImg) return alert("Por favor, selecciona una imagen de marcador primero.");
+            if (!selectedModelUrl || !currentMarkerImg) return alert("Selecciona modelo y marcador.");
 
             loadingOverlay.style.display = 'flex';
             const loadingText = document.getElementById('loading-text');
             loadingText.textContent = 'Inicializando compilador...';
 
             try {
-                log("Iniciando optimización de imagen...");
-
-                if (!window.MINDAR || !window.MINDAR.IMAGE || !window.MINDAR.IMAGE.Compiler) {
-                    throw new Error("Librería MindAR no cargada correctamente.");
-                }
-
-                loadingText.textContent = 'Procesando imagen (Resolución de alta precisión)...';
                 const img = new Image();
                 img.src = currentMarkerImg;
                 await img.decode();
 
-                // OPTIMIZACIÓN v2.0.8: Aumentamos a 800px para mejorar la precisión del reconocimiento
                 const maxSize = 800;
                 const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-                if (width > height) {
-                    if (width > maxSize) {
-                        height *= maxSize / width;
-                        width = maxSize;
-                    }
-                } else {
-                    if (height > maxSize) {
-                        width *= maxSize / height;
-                        height = maxSize;
-                    }
-                }
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                log(`Imagen optimizada para tracking a ${width}x${height}px`);
+                let width = img.width, height = img.height;
+                if (width > height) { if (width > maxSize) { height *= maxSize / width; width = maxSize; } }
+                else { if (height > maxSize) { width *= maxSize / height; height = maxSize; } }
+                canvas.width = width; canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
 
-                loadingText.textContent = 'Extrayendo características: 0%';
-                log("Iniciando compilación con tracker de progreso...");
-
+                log(`Compilando marcador a ${width}x${height}px...`);
                 const compiler = new window.MINDAR.IMAGE.Compiler();
-
-                // Añadimos callback de progreso para diagnosticar si se queda colgado
-                const dataList = await compiler.compileImageTargets([canvas], (progress) => {
+                await compiler.compileImageTargets([canvas], (progress) => {
                     loadingText.textContent = `Extrayendo características: ${Math.round(progress)}%`;
                 });
 
-                loadingText.textContent = 'Generando archivo de tracking...';
                 const buffer = compiler.exportData();
-                const blob = new Blob([buffer], { type: 'application/octet-stream' });
-                const mindUrl = URL.createObjectURL(blob);
+                const mindUrl = URL.createObjectURL(new Blob([buffer], { type: 'application/octet-stream' }));
 
-                log("Compilación completada exitosamente.");
                 initMindAR(mindUrl);
             } catch (e) {
-                console.error("Error en compilación:", e);
                 log("ERROR: " + e.message);
-                alert("Error al iniciar AR: " + e.message);
+                alert("Error: " + e.message);
                 loadingOverlay.style.display = 'none';
             }
         });
 
         function initMindAR(mindUrl) {
-            log("Iniciando escena MindAR...");
             const arScreen = document.getElementById('ar-screen');
+            const rotX = modelOrientation === 'stand' ? 90 : 0;
 
-            // Inyectamos la escena completa dinámicamente para asegurar una inicialización limpia
             arScreen.innerHTML = `
                 <button id="close-ar" style="position: absolute; top: 20px; right: 20px; z-index: 10001; background: rgba(0,0,0,0.5); color: white; border: 2px solid white; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
-                <div id="ar-overlay" style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; z-index: 10001; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-size: 16px; display: flex; flex-direction: column; align-items: center;">
+                <div id="ar-overlay" style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; z-index: 10001; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-size: 16px; display: flex; flex-direction: column; align-items: center; transition: all 0.5s;">
                     <span id="ar-instruction">Encuentra esta imagen con tu cámara:</span>
-                    <img src="${currentMarkerImg}" style="width: 100px; height: 100px; object-fit: contain; border: 2px solid white; margin-top: 10px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <img src="${currentMarkerImg}" style="width: 100px; height: 100px; object-fit: contain; border: 2px solid white; margin-top: 10px; border-radius: 10px;">
                 </div>
                 <a-scene mindar-image="imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;" 
-                         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
-                         vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-                    <a-assets>
-                        <a-asset-item id="dynamic-model" src="${selectedModelUrl}"></a-asset-item>
-                    </a-assets>
-
+                         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+                    <a-assets><a-asset-item id="dynamic-model" src="${selectedModelUrl}"></a-asset-item></a-assets>
                     <a-light type="ambient" intensity="1.5"></a-light>
                     <a-light type="directional" position="0 10 10" intensity="1"></a-light>
-
                     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
                     <a-entity mindar-image-target="targetIndex: 0">
-                        <!-- Cubo de referencia (rojo semi-transparente) para asegurar que el tracking funciona -->
-                        <a-box position="0 0 0.1" scale="0.2 0.2 0.2" material="color: red; opacity: 0.5"></a-box>
-                        <!-- Modelo GLB con rotación corregida para aparecer sobre la imagen -->
-                        <a-gltf-model src="#dynamic-model" rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5"></a-gltf-model>
+                        <a-gltf-model src="#dynamic-model" rotation="${rotX} 0 0" position="0 0 0" scale="1 1 1"></a-gltf-model>
                     </a-entity>
                 </a-scene>
             `;
 
-            // Vincular el evento de cierre de nuevo
-            arScreen.querySelector('#close-ar').addEventListener('click', () => {
-                location.reload();
-            });
+            arScreen.querySelector('#close-ar').addEventListener('click', () => { location.reload(); });
 
-            // Eventos de detección para feedback del usuario
             const arTarget = arScreen.querySelector('a-entity[mindar-image-target]');
             const instruction = arScreen.querySelector('#ar-instruction');
             const overlay = arScreen.querySelector('#ar-overlay');
 
             arTarget.addEventListener("targetFound", () => {
-                log("¡Marcador encontrado!");
                 instruction.textContent = "✅ ¡Marcador detectado!";
                 overlay.style.backgroundColor = "rgba(52, 199, 89, 0.4)";
             });
 
             arTarget.addEventListener("targetLost", () => {
-                log("Marcador perdido.");
                 instruction.textContent = "Encuentra esta imagen con tu cámara:";
                 overlay.style.backgroundColor = "transparent";
             });
 
-            // Mostrar la pantalla AR y bloquear scroll
             document.body.classList.add('ar-active');
             arScreen.style.display = 'block';
-
-            log("AR Listo. Si la cámara no aparece, verifica los permisos de tu navegador.");
             loadingOverlay.style.display = 'none';
         }
-
-        document.getElementById('close-ar').addEventListener('click', () => {
-            location.reload(); // Forma más segura de detener la cámara y limpiar memoria
-        });
-
-        // --- FIREBASE SUBIDA ---
-        fileInput.addEventListener('change', async (e) => {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-            const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
-
-            loadingOverlay.style.display = 'flex';
-            document.getElementById('loading-text').textContent = 'Subiendo modelos...';
-
-            for (const file of files) {
-                const name = file.name.split('.')[0];
-                log(`Subiendo ${name}...`);
-                const s = await uploadBytesResumable(ref(storage, 'ar/' + file.name), file);
-                const url = await getDownloadURL(s.ref);
-                await addDoc(collection(db, 'models'), {
-                    name: name,
-                    url_glb: url,
-                    createdAt: serverTimestamp()
-                });
-            }
-            loadingOverlay.style.display = 'none';
-            loadModelsList();
-        });
 
         async function deleteModel(docId, name) {
             if (!confirm(`¿Borrar ${name}?`)) return;
@@ -555,6 +459,21 @@
                 loadModelsList();
             } catch (e) { log('Error borrado.'); }
         }
+
+        fileInput.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+            const { storage, db, ref, uploadBytesResumable, getDownloadURL, collection, addDoc, serverTimestamp } = window.firebaseApp;
+            loadingOverlay.style.display = 'flex';
+            for (const file of files) {
+                const name = file.name.split('.')[0];
+                const s = await uploadBytesResumable(ref(storage, 'ar/' + file.name), file);
+                const url = await getDownloadURL(s.ref);
+                await addDoc(collection(db, 'models'), { name: name, url_glb: url, createdAt: serverTimestamp() });
+            }
+            loadingOverlay.style.display = 'none';
+            loadModelsList();
+        });
 
         if (window.firebaseApp) loadModelsList();
         else window.addEventListener('firebase-ready', loadModelsList);
