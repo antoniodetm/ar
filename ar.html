@@ -215,7 +215,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.3 (MindAR Engine + Auto-Resize) - 23/11/2026
+        v2.0.4 (MindAR Engine + Progress Tracker) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -384,13 +384,13 @@
                     throw new Error("Librería MindAR no cargada correctamente.");
                 }
 
-                loadingText.textContent = 'Procesando imagen (Baja resolución)...';
+                loadingText.textContent = 'Procesando imagen (Resolución optimizada)...';
                 const img = new Image();
                 img.src = currentMarkerImg;
                 await img.decode();
 
-                // OPTIMIZACIÓN: Redimensionar imagen a un máximo de 600px para acelerar la extracción de características
-                const maxSize = 600;
+                // OPTIMIZACIÓN v2.0.4: Reducir aún más para máxima compatibilidad
+                const maxSize = 400;
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
@@ -411,12 +411,15 @@
                 ctx.drawImage(img, 0, 0, width, height);
                 log(`Imagen optimizada a ${width}x${height}px`);
 
-                loadingText.textContent = 'Extrayendo características...';
-                log("Compilando marcador dinámico...");
+                loadingText.textContent = 'Extrayendo características: 0%';
+                log("Iniciando compilación con tracker de progreso...");
 
                 const compiler = new window.MINDAR.IMAGE.Compiler();
-                // Usamos el canvas redimensionado en lugar de la imagen original
-                const dataList = await compiler.compileImageTargets([canvas]);
+
+                // Añadimos callback de progreso para diagnosticar si se queda colgado
+                const dataList = await compiler.compileImageTargets([canvas], (progress) => {
+                    loadingText.textContent = `Extrayendo características: ${Math.round(progress)}%`;
+                });
 
                 loadingText.textContent = 'Generando archivo de tracking...';
                 const buffer = compiler.exportData();
