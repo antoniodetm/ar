@@ -237,7 +237,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.8 (MindAR Engine + Tracking Fix) - 23/11/2026
+        v2.0.9 (MindAR Engine + UI Guide) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -464,7 +464,10 @@
             // Inyectamos la escena completa dinámicamente para asegurar una inicialización limpia
             arScreen.innerHTML = `
                 <button id="close-ar" style="position: absolute; top: 20px; right: 20px; z-index: 10001; background: rgba(0,0,0,0.5); color: white; border: 2px solid white; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
-                <div id="ar-overlay" style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; z-index: 10001; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-size: 18px;">Encuentra el marcador para ver el modelo</div>
+                <div id="ar-overlay" style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; z-index: 10001; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-size: 16px; display: flex; flex-direction: column; align-items: center;">
+                    <span id="ar-instruction">Encuentra esta imagen con tu cámara:</span>
+                    <img src="${currentMarkerImg}" style="width: 100px; height: 100px; object-fit: contain; border: 2px solid white; margin-top: 10px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                </div>
                 <a-scene mindar-image="imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;" 
                          color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
                          vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
@@ -473,7 +476,7 @@
                     </a-assets>
                     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
                     <a-entity mindar-image-target="targetIndex: 0">
-                        <a-gltf-model src="#dynamic-model" rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5"></a-gltf-model>
+                        <a-gltf-model src="#dynamic-model" rotation="0 0 0" position="0 0 0" scale="1 1 1"></a-gltf-model>
                     </a-entity>
                 </a-scene>
             `;
@@ -485,18 +488,19 @@
 
             // Eventos de detección para feedback del usuario
             const arTarget = arScreen.querySelector('a-entity[mindar-image-target]');
+            const instruction = arScreen.querySelector('#ar-instruction');
             const overlay = arScreen.querySelector('#ar-overlay');
 
             arTarget.addEventListener("targetFound", () => {
                 log("¡Marcador encontrado!");
-                overlay.textContent = "✅ ¡Marcador detectado!";
-                overlay.style.backgroundColor = "rgba(52, 199, 89, 0.6)";
+                instruction.textContent = "✅ ¡Marcador detectado!";
+                overlay.style.backgroundColor = "rgba(52, 199, 89, 0.4)";
             });
 
             arTarget.addEventListener("targetLost", () => {
                 log("Marcador perdido.");
-                overlay.textContent = "Encuentra el marcador para ver el modelo";
-                overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+                instruction.textContent = "Encuentra esta imagen con tu cámara:";
+                overlay.style.backgroundColor = "transparent";
             });
 
             // Mostrar la pantalla AR y bloquear scroll
