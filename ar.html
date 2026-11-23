@@ -237,7 +237,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.7 (MindAR Engine + Boot Fix) - 23/11/2026
+        v2.0.8 (MindAR Engine + Tracking Fix) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -405,13 +405,13 @@
                     throw new Error("Librería MindAR no cargada correctamente.");
                 }
 
-                loadingText.textContent = 'Procesando imagen (Resolución optimizada)...';
+                loadingText.textContent = 'Procesando imagen (Resolución de alta precisión)...';
                 const img = new Image();
                 img.src = currentMarkerImg;
                 await img.decode();
 
-                // OPTIMIZACIÓN v2.0.4: Reducir aún más para máxima compatibilidad
-                const maxSize = 400;
+                // OPTIMIZACIÓN v2.0.8: Aumentamos a 800px para mejorar la precisión del reconocimiento
+                const maxSize = 800;
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
@@ -430,7 +430,7 @@
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                log(`Imagen optimizada a ${width}x${height}px`);
+                log(`Imagen optimizada para tracking a ${width}x${height}px`);
 
                 loadingText.textContent = 'Extrayendo características: 0%';
                 log("Iniciando compilación con tracker de progreso...");
@@ -481,6 +481,22 @@
             // Vincular el evento de cierre de nuevo
             arScreen.querySelector('#close-ar').addEventListener('click', () => {
                 location.reload();
+            });
+
+            // Eventos de detección para feedback del usuario
+            const arTarget = arScreen.querySelector('a-entity[mindar-image-target]');
+            const overlay = arScreen.querySelector('#ar-overlay');
+
+            arTarget.addEventListener("targetFound", () => {
+                log("¡Marcador encontrado!");
+                overlay.textContent = "✅ ¡Marcador detectado!";
+                overlay.style.backgroundColor = "rgba(52, 199, 89, 0.6)";
+            });
+
+            arTarget.addEventListener("targetLost", () => {
+                log("Marcador perdido.");
+                overlay.textContent = "Encuentra el marcador para ver el modelo";
+                overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
             });
 
             // Mostrar la pantalla AR y bloquear scroll
