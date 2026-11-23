@@ -215,7 +215,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.2 (MindAR Engine) - 23/11/2026
+        v2.0.3 (MindAR Engine + Auto-Resize) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -378,22 +378,45 @@
             loadingText.textContent = 'Inicializando compilador...';
 
             try {
-                log("Iniciando compilación...");
+                log("Iniciando optimización de imagen...");
 
                 if (!window.MINDAR || !window.MINDAR.IMAGE || !window.MINDAR.IMAGE.Compiler) {
                     throw new Error("Librería MindAR no cargada correctamente.");
                 }
 
-                loadingText.textContent = 'Cargando imagen...';
+                loadingText.textContent = 'Procesando imagen (Baja resolución)...';
                 const img = new Image();
                 img.src = currentMarkerImg;
                 await img.decode();
 
-                loadingText.textContent = 'Extrayendo características (esto puede tardar)...';
+                // OPTIMIZACIÓN: Redimensionar imagen a un máximo de 600px para acelerar la extracción de características
+                const maxSize = 600;
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                if (width > height) {
+                    if (width > maxSize) {
+                        height *= maxSize / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width *= maxSize / height;
+                        height = maxSize;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                log(`Imagen optimizada a ${width}x${height}px`);
+
+                loadingText.textContent = 'Extrayendo características...';
                 log("Compilando marcador dinámico...");
 
                 const compiler = new window.MINDAR.IMAGE.Compiler();
-                const dataList = await compiler.compileImageTargets([img]);
+                // Usamos el canvas redimensionado en lugar de la imagen original
+                const dataList = await compiler.compileImageTargets([canvas]);
 
                 loadingText.textContent = 'Generando archivo de tracking...';
                 const buffer = compiler.exportData();
