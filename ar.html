@@ -215,7 +215,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.0 (MindAR Engine) - 23/11/2026
+        v2.0.2 (MindAR Engine) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -358,8 +358,14 @@
 
         function checkReady() {
             if (selectedModelUrl && currentMarkerImg) {
-                startArBtn.style.display = 'block';
-                startArBtn.classList.add('btn-ar');
+                if (window.MINDAR && window.MINDAR.IMAGE && window.MINDAR.IMAGE.Compiler) {
+                    startArBtn.style.display = 'block';
+                    startArBtn.classList.add('btn-ar');
+                    log("Sistema AR listo para compilar.");
+                } else {
+                    log("Esperando a que las librerías AR carguen...");
+                    setTimeout(checkReady, 1000);
+                }
             }
         }
 
@@ -368,24 +374,37 @@
             if (!currentMarkerImg) return alert("Por favor, selecciona una imagen de marcador primero.");
 
             loadingOverlay.style.display = 'flex';
-            document.getElementById('loading-text').textContent = 'Compilando marcador...';
+            const loadingText = document.getElementById('loading-text');
+            loadingText.textContent = 'Inicializando compilador...';
 
             try {
-                log("Compilando marcador dinámico...");
+                log("Iniciando compilación...");
+
+                if (!window.MINDAR || !window.MINDAR.IMAGE || !window.MINDAR.IMAGE.Compiler) {
+                    throw new Error("Librería MindAR no cargada correctamente.");
+                }
+
+                loadingText.textContent = 'Cargando imagen...';
                 const img = new Image();
                 img.src = currentMarkerImg;
                 await img.decode();
 
+                loadingText.textContent = 'Extrayendo características (esto puede tardar)...';
+                log("Compilando marcador dinámico...");
+
                 const compiler = new window.MINDAR.IMAGE.Compiler();
                 const dataList = await compiler.compileImageTargets([img]);
+
+                loadingText.textContent = 'Generando archivo de tracking...';
                 const buffer = compiler.exportData();
                 const blob = new Blob([buffer], { type: 'application/octet-stream' });
                 const mindUrl = URL.createObjectURL(blob);
 
-                log("Compilación completada.");
+                log("Compilación completada exitosamente.");
                 initMindAR(mindUrl);
             } catch (e) {
-                console.error(e);
+                console.error("Error en compilación:", e);
+                log("ERROR: " + e.message);
                 alert("Error al iniciar AR: " + e.message);
                 loadingOverlay.style.display = 'none';
             }
