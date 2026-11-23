@@ -18,6 +18,18 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: #f0f0f0;
             overflow-x: hidden;
+            overflow-y: auto !important;
+        }
+
+        /* Prevenir que A-Frame bloquee el scroll de la página principal */
+        html.a-fullscreen,
+        html.a-fullscreen body {
+            overflow: auto !important;
+        }
+
+        /* Solo bloquear scroll cuando la pantalla AR está activa y visible */
+        body.ar-active {
+            overflow: hidden !important;
         }
 
         #ui-container {
@@ -225,7 +237,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.5 (MindAR Engine + Camera Fix) - 23/11/2026
+        v2.0.6 (MindAR Engine + Scroll Fix) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -473,7 +485,8 @@
             // Inyectar la URL del archivo .mind generado dinámicamente
             arScene.setAttribute('mindar-image', `imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;`);
 
-            // Mostrar la pantalla AR
+            // Mostrar la pantalla AR y bloquear scroll
+            document.body.classList.add('ar-active');
             arScreen.style.display = 'block';
 
             log("AR Listo. Busca la imagen marcador con tu cámara.");
