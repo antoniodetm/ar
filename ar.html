@@ -417,7 +417,7 @@
                     <span id="ar-instruction">Encuentra esta imagen con tu cámara:</span>
                     <img src="${currentMarkerImg}" style="width: 100px; height: 100px; object-fit: contain; border: 2px solid white; margin-top: 10px; border-radius: 10px;">
                 </div>
-                <a-scene mindar-image="imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;" 
+                <a-scene mindar-image="imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes; filterMinCF:0.0001; filterBeta: 0.001;" 
                          color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
                     <a-assets><a-asset-item id="dynamic-model" src="${selectedModelUrl}"></a-asset-item></a-assets>
                     <a-light type="ambient" intensity="1.5"></a-light>
