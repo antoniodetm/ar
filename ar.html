@@ -237,7 +237,7 @@
     <!-- Versión del Sistema -->
     <div
         style="position: fixed; top: 5px; right: 10px; font-size: 10px; color: #999; z-index: 1000; pointer-events: none;">
-        v2.0.6 (MindAR Engine + Scroll Fix) - 23/11/2026
+        v2.0.7 (MindAR Engine + Boot Fix) - 23/11/2026
     </div>
 
     <!-- Pantalla de carga -->
@@ -460,36 +460,34 @@
         function initMindAR(mindUrl) {
             log("Iniciando escena MindAR...");
             const arScreen = document.getElementById('ar-screen');
-            const arScene = document.getElementById('ar-scene');
-            const arTarget = document.getElementById('ar-target');
-            const arAssets = document.getElementById('ar-assets');
 
-            // Limpiar contenido previo
-            arTarget.innerHTML = '';
-            arAssets.innerHTML = '';
+            // Inyectamos la escena completa dinámicamente para asegurar una inicialización limpia
+            arScreen.innerHTML = `
+                <button id="close-ar" style="position: absolute; top: 20px; right: 20px; z-index: 10001; background: rgba(0,0,0,0.5); color: white; border: 2px solid white; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">✕</button>
+                <div id="ar-overlay" style="position: absolute; bottom: 30px; left: 0; right: 0; text-align: center; z-index: 10001; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); pointer-events: none; font-size: 18px;">Encuentra el marcador para ver el modelo</div>
+                <a-scene mindar-image="imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;" 
+                         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" 
+                         vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+                    <a-assets>
+                        <a-asset-item id="dynamic-model" src="${selectedModelUrl}"></a-asset-item>
+                    </a-assets>
+                    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+                    <a-entity mindar-image-target="targetIndex: 0">
+                        <a-gltf-model src="#dynamic-model" rotation="0 0 0" position="0 0 0" scale="0.5 0.5 0.5"></a-gltf-model>
+                    </a-entity>
+                </a-scene>
+            `;
 
-            // Configurar el modelo
-            const modelAsset = document.createElement('a-asset-item');
-            modelAsset.setAttribute('id', 'dynamic-model');
-            modelAsset.setAttribute('src', selectedModelUrl);
-            arAssets.appendChild(modelAsset);
-
-            const entity = document.createElement('a-gltf-model');
-            entity.setAttribute('src', '#dynamic-model');
-            entity.setAttribute('rotation', '0 0 0');
-            entity.setAttribute('position', '0 0 0');
-            entity.setAttribute('scale', '0.5 0.5 0.5');
-            entity.classList.add('clickable');
-            arTarget.appendChild(entity);
-
-            // Inyectar la URL del archivo .mind generado dinámicamente
-            arScene.setAttribute('mindar-image', `imageTargetSrc: ${mindUrl}; autoStart: true; uiError:no; uiLoading:no; uiScanning:yes;`);
+            // Vincular el evento de cierre de nuevo
+            arScreen.querySelector('#close-ar').addEventListener('click', () => {
+                location.reload();
+            });
 
             // Mostrar la pantalla AR y bloquear scroll
             document.body.classList.add('ar-active');
             arScreen.style.display = 'block';
 
-            log("AR Listo. Busca la imagen marcador con tu cámara.");
+            log("AR Listo. Si la cámara no aparece, verifica los permisos de tu navegador.");
             loadingOverlay.style.display = 'none';
         }
 
