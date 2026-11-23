@@ -193,6 +193,10 @@
             Modo: <span id="ar-mode-text">Suelo</span>
         </div>
         <button slot="ar-button" id="ar-button">👋 Ver en tu espacio (AR)</button>
+        <div id="ar-info-note"
+            style="position: absolute; bottom: -30px; left: 0; right: 0; font-size: 10px; color: #666; text-align: center; pointer-events: none;">
+            Nota: iOS (iPhone) solicita escanear el suelo para inicializar ARKit.
+        </div>
     </model-viewer>
 
     <div id="debug-console"
@@ -292,7 +296,9 @@
                 ground.style.backgroundPosition = 'center'; ground.style.border = '2px solid white';
                 ground.style.zIndex = '1'; ground.style.pointerEvents = 'none';
                 modelViewer.appendChild(ground);
-                modelViewer.setAttribute('ar-modes', 'quick-look webxr');
+
+                // Priorizamos WebXR para intentar tracking de imagen si el navegador lo soporta
+                modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
             } else {
                 modelViewer.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
                 markerStatus.style.display = 'none';
@@ -304,9 +310,14 @@
             setTimeout(() => {
                 if (url_glb) modelViewer.setAttribute('src', url_glb);
                 if (url_usdz) {
-                    // iOS IMAGE ANCHORING: El parámetro allowsContentScaling=0 es vital
-                    // para que Quick Look intente fijar el objeto a una referencia real.
-                    const iosUrl = hasMarker ? `${url_usdz}#allowsContentScaling=0` : url_usdz;
+                    // Para iOS Quick Look, el comportamiento por defecto es buscar superficies (suelo).
+                    // El tracking de imagen real en iOS requiere archivos .reality con anchors definidos.
+                    // Usamos allowsContentScaling=0 para mantener la escala real del modelo.
+                    let iosUrl = url_usdz;
+                    if (hasMarker) {
+                        iosUrl += (iosUrl.includes('#') ? '&' : '#') + 'allowsContentScaling=0';
+                        log("Info: iOS Quick Look requiere escanear el suelo primero para inicializar la escala.");
+                    }
                     modelViewer.setAttribute('ios-src', iosUrl);
                 }
             }, 100);
